@@ -21,6 +21,7 @@ class ActionType(Enum):
     ONE_D_RPM = "one_d_rpm"     # 1D (identical input to all motors) with RPMs
     ONE_D_DYN = "one_d_dyn"     # 1D (identical input to all motors) with desired thrust and torques
     ONE_D_PID = "one_d_pid"     # 1D (identical input to all motors) with PID control
+    JOYSTICK =  "joystick"      # 1: Arah X pos, 2: Arah X neg, 3: Arah Y pos, 4: Arah Y neg
 
 ################################################################################
 
@@ -28,6 +29,7 @@ class ObservationType(Enum):
     """Observation type enumeration class."""
     KIN = "kin"     # Kinematic information (pose, linear and angular velocities)
     RGB = "rgb"     # RGB camera capture in each drone's POV
+    KIN_PAY = "kin_pay" # Kinematic + payload
 
 ################################################################################
 

@@ -171,6 +171,7 @@ class BaseAviary(gym.Env):
                 self.A = np.array([ [1, 1, 1, 1], [0, 1, 0, -1], [-1, 0, 1, 0], [-1, 1, -1, 1] ])
             self.INV_A = np.linalg.inv(self.A)
             self.B_COEFF = np.array([1/self.KF, 1/(self.KF*self.L), 1/(self.KF*self.L), 1/self.KM])
+            # A*vect(RPM) = B_COEFF*vect(force/torque)
         #### Connect to PyBullet ###################################
         if self.GUI:
             #### With debug GUI ########################################
