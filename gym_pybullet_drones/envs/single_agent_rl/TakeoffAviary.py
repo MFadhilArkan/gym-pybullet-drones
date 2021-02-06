@@ -73,10 +73,12 @@ class TakeoffAviary(BaseSingleAgentAviary):
 
         """
         state = self._getDroneStateVector(0)
-        if state[2] < 0.02:
-            return -5
-        else:
-            return -1 / (10*state[2])
+        # if state[2] < 0.02:
+        #     return -5
+        # else:
+        #     return -1 / (10*state[2])
+        return -1 * (state[2] - 1)**2
+            
 
     ################################################################################
     

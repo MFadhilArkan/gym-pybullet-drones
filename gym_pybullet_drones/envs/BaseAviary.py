@@ -458,7 +458,7 @@ class BaseAviary(gym.Env):
         self.first_render_call = True
         self.X_AX = -1*np.ones(self.NUM_DRONES)
         self.Y_AX = -1*np.ones(self.NUM_DRONES)
-        self.Z_AX = -1*np.ones(self.NUM_DRONES);
+        self.Z_AX = -1*np.ones(self.NUM_DRONES)
         self.GUI_INPUT_TEXT = -1*np.ones(self.NUM_DRONES)
         self.USE_GUI_RPM=False
         self.last_input_switch = 0
@@ -969,7 +969,7 @@ class BaseAviary(gym.Env):
                    physicsClientId=self.CLIENT
                    )
         p.loadURDF("cube_no_rotation.urdf",
-                   [-.5, -2.5, .5],
+                   [2, 1, .5],
                    p.getQuaternionFromEuler([0, 0, 0]),
                    physicsClientId=self.CLIENT
                    )

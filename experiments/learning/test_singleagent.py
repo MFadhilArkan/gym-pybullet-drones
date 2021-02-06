@@ -45,7 +45,7 @@ if __name__ == "__main__":
 
     #### Define and parse (optional) arguments for the script ##
     parser = argparse.ArgumentParser(description='Single agent reinforcement learning example script using TakeoffAviary')
-    parser.add_argument('--exp',                           type=str,            help='Help (default: ..)', metavar='')
+    parser.add_argument('--exp',  default = 'experiments/learning/results/save-takeoff-ppo-kin-one_d_pid-02.06.2021_17.23.37'                        ,type=str,            help='Help (default: ..)', metavar='')
     ARGS = parser.parse_args()
 
     #### Load the model from file ##############################
@@ -113,10 +113,11 @@ if __name__ == "__main__":
                     )
     obs = test_env.reset()
     start = time.time()
-    for i in range(6*int(test_env.SIM_FREQ/test_env.AGGR_PHY_STEPS)): # Up to 6''
+    for i in range(30*int(test_env.SIM_FREQ/test_env.AGGR_PHY_STEPS)): # Up to 6''
         action, _states = model.predict(obs,
                                         deterministic=True # OPTIONAL 'deterministic=False'
                                         )
+    
         obs, reward, done, info = test_env.step(action)
         test_env.render()
         if OBS==ObservationType.KIN:
@@ -127,5 +128,5 @@ if __name__ == "__main__":
                        )
         sync(np.floor(i*test_env.AGGR_PHY_STEPS), start, test_env.TIMESTEP)
         # if done: obs = test_env.reset() # OPTIONAL EPISODE HALT
-    test_env.close()
+    # test_env.close()
     logger.plot()
