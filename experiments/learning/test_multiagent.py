@@ -125,7 +125,7 @@ if __name__ == "__main__":
 
     #### Define and parse (optional) arguments for the script ##
     parser = argparse.ArgumentParser(description='Multi-agent reinforcement learning experiments script')
-    parser.add_argument('--exp',    type=str,       help='Help (default: ..)', metavar='')
+    parser.add_argument('--exp',   default='experiments/learning/results/save-meetup-2-cc-kin-rpm-02.07.2021_19.40.14', type=str,       help='Help (default: ..)', metavar='')
     ARGS = parser.parse_args()
 
     #### Parameters to recreate the environment ################

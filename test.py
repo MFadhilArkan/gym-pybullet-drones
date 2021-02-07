@@ -6,8 +6,8 @@ import numpy as np
 p.connect(p.GUI)
 p.setAdditionalSearchPath(pybullet_data.getDataPath())
 planeId = p.loadURDF("plane.urdf", useMaximalCoordinates=False)
-cubeId = p.loadURDF("cube_collisionfilter.urdf", [0, 5,0], useMaximalCoordinates=False)
-sphereId = p.loadURDF("cube_collisionfilter.urdf", [0, 0, 0], useMaximalCoordinates=False)
+cubeId = p.loadURDF("cube_no_rotation.urdf", [0, 5,0], useMaximalCoordinates=False)
+sphereId = p.loadURDF("cube_no_rotation.urdf", [0, 0, 0], useMaximalCoordinates=False)
 
 collisionFilterGroup = 0
 collisionFilterMask = 0
@@ -25,7 +25,7 @@ p.setGravity(0, 0, -10)
 i = 0
 while (p.isConnected()):
   if(i % 100) == 0:
-    print(p.getClosestPoints(1,2,6), '\n')
+    print(p.getClosestPoints(1,2,4), '\n')
   time.sleep(1. / 240.)
   p.setGravity(0, 0, -10)
   i += 1

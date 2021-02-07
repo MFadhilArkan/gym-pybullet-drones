@@ -141,7 +141,7 @@ if __name__ == "__main__":
     parser.add_argument('--num_drones',  default=2,            type=int,                                                                 help='Number of drones (default: 2)', metavar='')
     parser.add_argument('--env',         default='meetup',      type=str,             choices=['leaderfollower', 'flock', 'meetup'],      help='Help (default: ..)', metavar='')
     parser.add_argument('--obs',         default='kin',        type=ObservationType,                                                     help='Help (default: ..)', metavar='')
-    parser.add_argument('--act',         default='rpm',  type=ActionType,                                                          help='Help (default: ..)', metavar='')
+    parser.add_argument('--act',         default='pid',  type=ActionType,                                                          help='Help (default: ..)', metavar='')
     parser.add_argument('--algo',        default='cc',         type=str,             choices=['cc'],                                     help='Help (default: ..)', metavar='')
     parser.add_argument('--workers',     default=5,            type=int,                                                                 help='Help (default: ..)', metavar='')        
     ARGS = parser.parse_args()
@@ -245,7 +245,7 @@ if __name__ == "__main__":
                                 aggregate_phy_steps=shared_constants.AGGR_PHY_STEPS,
                                 obs=ARGS.obs,
                                 act=ARGS.act,
-                                dest = [2, 2, 0.5]
+                                dest_point = [2, 2, 0.5]
                                 )
     else:
         print("[ERROR] environment not yet implemented")
@@ -292,7 +292,7 @@ if __name__ == "__main__":
 
     #### Ray Tune stopping conditions ##########################
     stop = {
-        "timesteps_total": 100, # 8000,
+        "timesteps_total": 100000, # 8000,
         # "episode_reward_mean": 0,
         # "training_iteration": 0,
     }
@@ -302,9 +302,9 @@ if __name__ == "__main__":
         "PPO",
         stop=stop,
         config=config,
-        verbose=True,
+        verbose=3,
         checkpoint_at_end=True,
-        # local_dir=filename,
+        local_dir=filename,
     )
     # check_learning_achieved(results, 1.0)
 
