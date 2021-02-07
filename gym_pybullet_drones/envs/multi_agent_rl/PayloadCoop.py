@@ -1,21 +1,23 @@
-import os
-from datetime import datetime
+import math
 import numpy as np
 from gym import spaces
 from ray.rllib.env.multi_agent_env import MultiAgentEnv, ENV_STATE
+import os
+import pybullet as p
+
+from gym_pybullet_drones.envs.BaseAviary import DroneModel, Physics, BaseAviary
 
 from gym_pybullet_drones.envs.BaseAviary import DroneModel, Physics, BaseAviary
 from gym_pybullet_drones.envs.single_agent_rl.BaseSingleAgentAviary import ActionType, ObservationType
-from gym_pybullet_drones.utils.utils import nnlsRPM
-from gym_pybullet_drones.control.DSLPIDControl import DSLPIDControl
-from gym_pybullet_drones.control.SimplePIDControl import SimplePIDControl
+from gym_pybullet_drones.envs.multi_agent_rl.BaseMultiagentAviary import BaseMultiagentAviary
 
-class PayloadCoop(BaseAviary, MultiAgentEnv):
+
+class PayloadCoop(BaseMultiagentAviary):
     
     ################################################################################
 
     def __init__(self,
-                 dest_point = None,
+                 dest_point,
                  drone_model: DroneModel=DroneModel.CF2X,
                  num_drones: int=2,
                  neighbourhood_radius: float=np.inf,
@@ -64,30 +66,12 @@ class PayloadCoop(BaseAviary, MultiAgentEnv):
             The type of action space (1 or 3D; RPMS, thurst and torques, waypoint or velocity with PID control; etc.)
 
         """
-        if num_drones != 2:
-            print("Jumlah drone tidak 2")
-            exit()
-        if dest_point == None:
-            print("Destination point belum ada")
-            exit()
+
 
         self.MAX_DISTANCE_BETWEEN_DRONE = 2
         self.dest_point = dest_point
         self.OBSTACLE_IDS = []
-        vision_attributes = True if obs == ObservationType.RGB else False
-        dynamics_attributes = True if act in [ActionType.DYN, ActionType.ONE_D_DYN] else False
-        self.OBS_TYPE = obs
-        self.ACT_TYPE = act
         self.EPISODE_LEN_SEC = 10
-        #### Create integrated controllers #########################
-        if act in [ActionType.PID, ActionType.VEL, ActionType.ONE_D_PID]:
-            os.environ['KMP_DUPLICATE_LIB_OK']='True'
-            if drone_model in [DroneModel.CF2X, DroneModel.CF2P]:
-                self.ctrl = [DSLPIDControl(drone_model=DroneModel.CF2X) for i in range(num_drones)]
-            elif drone_model == DroneModel.HB:
-                self.ctrl = [SimplePIDControl(drone_model=DroneModel.HB) for i in range(num_drones)]
-            else:
-                print("[ERROR] in BaseMultiagentAviary.__init()__, no controller is available for the specified drone_model")
         super().__init__(drone_model=drone_model,
                          num_drones=num_drones,
                          neighbourhood_radius=neighbourhood_radius,
@@ -98,14 +82,12 @@ class PayloadCoop(BaseAviary, MultiAgentEnv):
                          aggregate_phy_steps=aggregate_phy_steps,
                          gui=gui,
                          record=record, 
-                         obstacles=True, # Add obstacles for RGB observations and/or FlyThruGate
-                         user_debug_gui=False, # Remove of RPM sliders from all single agent learning aviaries
-                         vision_attributes=vision_attributes,
-                         dynamics_attributes=dynamics_attributes
+                         obs=obs,
+                         act=act
                          )
-        #### Set a limit on the maximum target speed ###############
-        if act == ActionType.VEL:
-            self.SPEED_LIMIT = 0.03 * self.MAX_SPEED_KMH * (1000/3600)
+        # #### Set a limit on the maximum target speed ###############
+        # if act == ActionType.VEL:
+        #     self.SPEED_LIMIT = 0.03 * self.MAX_SPEED_KMH * (1000/3600)
 
     
     ################################################################################
@@ -170,7 +152,7 @@ class PayloadCoop(BaseAviary, MultiAgentEnv):
         """
         if self.OBS_TYPE == ObservationType.KIN: 
             #### 12 + 4 state deteksi rintangan, 3 state jarak dengan drone lain, 3 state jarak dengan tujuan, 
-            obs_22 = np.zeros((self.NUM_DRONES,22))
+            obs_22 = np.zeros((self.NUM_DRONES,22), dtype = np.float32)
             
             for i in range(self.NUM_DRONES):
                 obs_kin = self._getDroneStateVector(i) # Kinematic drone 
@@ -178,8 +160,7 @@ class PayloadCoop(BaseAviary, MultiAgentEnv):
                 obs_dist_drone = self._getDroneStateVector((i + 1) % 2)[0:3] - obs_kin[0:3] # Jarak dengan drone lain
                 obs_dist_dest = self.dest_point - obs_kin[0:3] # Jarak dengan posisi tujuan
                 obs_22[i, :] = np.hstack([obs_kin[0:3], obs_kin[7:10], obs_kin[10:13], obs_kin[13:16], obs_obstacle, obs_dist_drone, obs_dist_dest]).reshape(22,)
-
-            obs = self._clipAndNormalizeState(obs)   
+                obs_22[i, :] = self._clipAndNormalizeState(obs_22[i, :])   
             return {i: obs_22[i, :] for i in range(self.NUM_DRONES)}
             ############################################################
         else:
@@ -229,21 +210,16 @@ class PayloadCoop(BaseAviary, MultiAgentEnv):
         RPM_eq = 16073 #sqrt(mg/4Ct)
         reward += rwd_rpm * np.sum(drone_states[16:20] - RPM_eq)
 
-        return reward
+        return {i: reward for i in self.DRONE_IDS}
 
     ################################################################################
     
     def _computeDone(self):
         drone_ids = self.getDroneIds()
-        bool_val = False
-        for i in drone_ids:
-            bool_val = self._isArrive(i) \
-            or self._isHitEverything(i) \
-            or self._isDroneTooFar(i) \ 
-        self.step_counter/self.SIM_FREQ > self.EPISODE_LEN_SEC
-
-
-        bool_val = True if self.step_counter/self.SIM_FREQ > self.EPISODE_LEN_SEC else False
+        bool_val = self._isArrive(drone_ids) \
+            or self._isDroneTooFar(drone_ids) \
+            or self._isHitEverything(drone_ids)
+        bool_val = bool_val or (self.step_counter/self.SIM_FREQ > self.EPISODE_LEN_SEC)
         done = {i: bool_val for i in range(self.NUM_DRONES)}
         done["__all__"] = True if True in done.values() else False
 
@@ -307,12 +283,11 @@ class PayloadCoop(BaseAviary, MultiAgentEnv):
                 rpm[int(k),:] = rpm_k
             else:
                 print("[ERROR] in BaseMultiagentAviary._preprocessAction(), ACT_TYPE is not JOYSTICK")
-                exit()
         return rpm   
 
     ################################################################################
 
-     def _clipAndNormalizeState(self,
+    def _clipAndNormalizeState(self,
                                state
                                ):
         """Normalizes a drone's state to the [-1,1] range.
@@ -365,7 +340,7 @@ class PayloadCoop(BaseAviary, MultiAgentEnv):
         normalized_ang_vel = state[9:12]/np.linalg.norm(state[9:12]) if np.linalg.norm(state[9:12]) != 0 else state[9:12]
 
         normalized_dist_betw_drone = state[16:19] / self.MAX_DISTANCE_BETWEEN_DRONE
-        normalized_dist_goal = state[19:] / self.MAX_DIST_GOAL
+        normalized_dist_goal = state[19:] / MAX_DIST_GOAL
 
         norm_and_clipped = np.hstack([normalized_pos_xy,
                                       normalized_pos_z,
@@ -376,7 +351,7 @@ class PayloadCoop(BaseAviary, MultiAgentEnv):
                                       normalized_ang_vel,
                                       state[12:16],
                                       normalized_dist_betw_drone,
-                                      normalize_dist_goal
+                                      normalized_dist_goal
                                       ]).reshape(22,)
 
         return norm_and_clipped
@@ -413,14 +388,16 @@ class PayloadCoop(BaseAviary, MultiAgentEnv):
         for i in range(len(drone_ids)):
             a, b = p.getAABB(drone_ids[i]) # Melihat batas posisi collision drone ke i
             list_obj = p.getOverlappingObjects(a, b) # Melihat objek2 yang ada di batas posisi collision
-            if(len(list_obj) >= 6) # 1 Quadcopter memiliki 6 link/bagian
+            if(len(list_obj) >= 6): # 1 Quadcopter memiliki 6 link/bagian
                 return True
         return False
 
     ################################################################################
 
-    def _isDroneTooFar(self, drone_ids, max_dist = self.MAX_DISTANCE_BETWEEN_DRONE):
+    def _isDroneTooFar(self, drone_ids, max_dist = None):
         # Looping untuk setiap pair of drone
+        if(max_dist == None):
+            max_dist = self.MAX_DISTANCE_BETWEEN_DRONE
         for i in range(len(drone_ids)):
             for j in range(i + 1, len(drone_ids)):
                 dr1_states = self._getDroneStateVector(drone_ids[i])
@@ -430,8 +407,10 @@ class PayloadCoop(BaseAviary, MultiAgentEnv):
                     return True
         return False
 
-    def _isArrive(self, drone_ids, tol = 0.01, dest = self.dest_point):
+    def _isArrive(self, drone_ids, tol = 0.01, dest = None):
         # Menghitung centroid of points dari kumpulan drone
+        if(dest == None):
+            dest = self.dest_point
         centroid = [0, 0, 0]
         for i in range(len(drone_ids)):
             dr_states = self._getDroneStateVector(drone_ids[i])
@@ -444,7 +423,7 @@ class PayloadCoop(BaseAviary, MultiAgentEnv):
     
     ################################################################################
 
-    def _addObstacles(self, position):
+    def _addObstaclesAt(self, position):
         """Add obstacles to the environment.
 
         Only if the observation is of type RGB, 4 landmarks are added.
@@ -456,11 +435,11 @@ class PayloadCoop(BaseAviary, MultiAgentEnv):
                     p.getQuaternionFromEuler([0, 0, 0]),
                     physicsClientId=self.CLIENT
                     )
-        self.OBSTACLE_IDS.append(id_)    
+        self.OBSTACLE_IDS.append(id_) 
 
     ################################################################################
 
-     def _isObstacleNear(self, drone_id, sensor_dist = 2, min_dist_parallel = 0.5):
+    def _isObstacleNear(self, drone_id, sensor_dist = 2, min_dist_parallel = 0.5):
         obstacle_state = np.zeros(4)
         drone_state = self._getDroneStateVector(drone_id)
         for obst_id in self.OBSTACLE_IDS:
