@@ -119,7 +119,7 @@ class PayloadCoop(BaseMultiagentAviary):
         #                                   high=np.ones(size),
         #                                   dtype=np.float32
         #                                   ) for i in range(self.NUM_DRONES)})
-        return spaces.Dict({i: spaces.Discrete(4) for i in range(self.NUM_DRONES)})
+        return spaces.Dict({i: spaces.Discrete(5) for i in range(self.NUM_DRONES)})
 
     ################################################################################
 
@@ -281,6 +281,8 @@ class PayloadCoop(BaseMultiagentAviary):
                     target_pos = state[0:3] + K_MOVE * np.array([0, 1, 0])
                 elif v == 3: # Arah Y neg
                     target_pos = state[0:3] + K_MOVE * np.array([0, -1, 0])
+                elif v == 4: # Diam
+                    target_pos = state[0:3]
                 else:
                     target_pos = state[0:3]
                     print("Aksi tidak diketahui, drone ke-{} akan diam\n".format(k))
