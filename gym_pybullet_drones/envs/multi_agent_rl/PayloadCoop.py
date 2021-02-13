@@ -7,6 +7,8 @@ import pybullet as p
 from gym_pybullet_drones.envs.BaseAviary import DroneModel, Physics, BaseAviary
 from gym_pybullet_drones.envs.single_agent_rl.BaseSingleAgentAviary import ActionType, ObservationType
 from gym_pybullet_drones.envs.multi_agent_rl.BaseMultiagentAviary import BaseMultiagentAviary
+from gym_pybullet_drones.utils.utils import nnlsRPM
+#X merah, Y hijau, Z biru
 
 
 class PayloadCoop(BaseMultiagentAviary):
@@ -80,8 +82,8 @@ class PayloadCoop(BaseMultiagentAviary):
         # if act == ActionType.VEL:
         #     self.SPEED_LIMIT = 0.03 * self.MAX_SPEED_KMH * (1000/3600)
 
-        self.MAX_DISTANCE_BETWEEN_DRONE = 0.5
-        self.K_MOVE = 0.2 # Max velocity K_MOVE m/s
+        self.MAX_DISTANCE_BETWEEN_DRONE = 1
+        self.K_MOVE = 0.2 # seberapa jauh target pos untuk pid dengan cur pos
         self.MAX_XY = 10
         self.MAX_Z = 2
         self.dest_point = dest_point
@@ -106,21 +108,20 @@ class PayloadCoop(BaseMultiagentAviary):
             indexed by drone Id in integer format.
 
         """
-        # if self.ACT_TYPE in [ActionType.RPM, ActionType.DYN, ActionType.VEL]:
-        #     size = 4
-        # elif self.ACT_TYPE==ActionType.PID:
-        #     size = 3
-        # elif self.ACT_TYPE in [ActionType.ONE_D_RPM, ActionType.ONE_D_DYN, ActionType.ONE_D_PID]:
-        #     size = 1
-        # else:
-        #     print("[ERROR] in BaseMultiagentAviary._actionSpace()")
-        #     exit()
-        # return spaces.Dict({i: spaces.Box(low=-1*np.ones(size),
-        #                                   high=np.ones(size),
-        #                                   dtype=np.float32
-        #                                   ) for i in range(self.NUM_DRONES)})
-        return spaces.Dict({i: spaces.Discrete(5) for i in range(self.NUM_DRONES)})
+        if(self.ACT_TYPE == ActionType.JOYSTICK):
+            return spaces.Dict({i: spaces.Discrete(5) for i in range(self.NUM_DRONES)})
 
+        if self.ACT_TYPE in [ActionType.RPM, ActionType.DYN, ActionType.VEL]:
+            size = 4
+        elif self.ACT_TYPE in [ActionType.PID, ActionType.PID_Z_CONST]:
+            size = 3
+        else:
+            print("[ERROR] in BaseMultiagentAviary._actionSpace()")
+            exit()
+        return spaces.Dict({i: spaces.Box(low=-1*np.ones(size),
+                                          high=np.ones(size),
+                                          dtype=np.float32
+                                          ) for i in range(self.NUM_DRONES)})
     ################################################################################
 
     def _observationSpace(self):
@@ -134,14 +135,14 @@ class PayloadCoop(BaseMultiagentAviary):
 
         """
         if self.OBS_TYPE == ObservationType.KIN:
-            #(x,y,z, r,p,y, x_dot, y_dot, z_dot, r_dot,p_dot,y_dot, ob_x+,ob_x-,ob_y+,ob_y-, x_dr2-x, y_dr2-y,z_dr2-z, x_dest-x,y_dest-y,z_dest-z)
+            #(x,y,z, r,p,y, x_dot, y_dot, z_dot, r_dot,p_dot,y_dot, ob_x+,ob_y+,ob_x-,ob_y-, x_dr2-x, y_dr2-y,z_dr2-z, x_dest-x,y_dest-y,z_dest-z)
             #12 + 4 state deteksi rintangan, 3 state jarak dengan drone lain, 3 state jarak dengan tujuan, 
             return spaces.Dict({i: spaces.Box(low=np.array([-1,-1,0, -1,-1,-1, -1,-1,-1, -1,-1,-1, 0,0,0,0, -1,-1,-1, -1,-1,-1]),
                                               high=np.array([1,1,1,   1,1,1,    1,1,1,    1,1,1,   1,1,1,1,  1,1,1,    1,1,1]),
                                               dtype=np.float32
                                               ) for i in range(self.NUM_DRONES)})
         else:
-            print("[ERROR] in BaseMultiagentAviary._observationSpace(), OBS_TYPE is not KIN")
+            print("[ERROR] in PayloadCoop._observationSpace(), OBS_TYPE is not KIN")
 
     ################################################################################
 
@@ -168,6 +169,9 @@ class PayloadCoop(BaseMultiagentAviary):
                 obs_22[i, :] = np.hstack([obs_kin[0:3], obs_kin[7:10], obs_kin[10:13], obs_kin[13:16], obs_obstacle, obs_dist_drone, obs_dist_dest]).reshape(22,)
                 obs_22[i, :] = self._clipAndNormalizeState(obs_22[i, :])   
             return {i: obs_22[i, :] for i in range(self.NUM_DRONES)}
+
+            ## Observasi tanpa 12 state quadcopter
+            # return {i: obs_22[i, [12:]] for i in range(self.NUM_DRONES)}
             ############################################################
         else:
             print("[ERROR] in PayloadCoop._computeObs()")
@@ -275,10 +279,10 @@ class PayloadCoop(BaseMultiagentAviary):
                 state = self._getDroneStateVector(int(k))
                 if v == 0: # Arah X pos
                     target_pos = state[0:3] + K_MOVE * np.array([1, 0, 0])
-                elif v == 1: # Arah X neg
-                    target_pos = state[0:3] + K_MOVE * np.array([-1, 0, 0])
-                elif v == 2: # Arah Y pos
+                elif v == 1: # Arah Y pos
                     target_pos = state[0:3] + K_MOVE * np.array([0, 1, 0])
+                elif v == 2: # Arah X neg
+                    target_pos = state[0:3] + K_MOVE * np.array([-1, 0, 0])
                 elif v == 3: # Arah Y neg
                     target_pos = state[0:3] + K_MOVE * np.array([0, -1, 0])
                 elif v == 4: # Diam
@@ -294,8 +298,60 @@ class PayloadCoop(BaseMultiagentAviary):
                                                         target_pos=target_pos
                                                         )
                 rpm[int(k),:] = rpm_k
+            elif self.ACT_TYPE == ActionType.RPM:
+                return np.array(self.HOVER_RPM * (1+0.05*action))
+            elif self.ACT_TYPE == ActionType.DYN:
+                return nnlsRPM(thrust=(self.GRAVITY*(action[0]+1)),
+                            x_torque=(0.05*self.MAX_XY_TORQUE*action[1]),
+                            y_torque=(0.05*self.MAX_XY_TORQUE*action[2]),
+                            z_torque=(0.05*self.MAX_Z_TORQUE*action[3]),
+                            counter=self.step_counter,
+                            max_thrust=self.MAX_THRUST,
+                            max_xy_torque=self.MAX_XY_TORQUE,
+                            max_z_torque=self.MAX_Z_TORQUE,
+                            a=self.A,
+                            inv_a=self.INV_A,
+                            b_coeff=self.B_COEFF,
+                            gui=self.GUI
+                            )
+            elif self.ACT_TYPE == ActionType.PID: 
+                state = self._getDroneStateVector(0)
+                rpm, _, _ = self.ctrl.computeControl(control_timestep=self.AGGR_PHY_STEPS*self.TIMESTEP, 
+                                                    cur_pos=state[0:3],
+                                                    cur_quat=state[3:7],
+                                                    cur_vel=state[10:13],
+                                                    cur_ang_vel=state[13:16],
+                                                    target_pos=state[0:3]+0.1*action
+                                                    )
+                return rpm
+            elif self.ACT_TYPE == ActionType.VEL:
+                state = self._getDroneStateVector(0)
+                if np.linalg.norm(action[0:3]) != 0:
+                    v_unit_vector = action[0:3] / np.linalg.norm(action[0:3])
+                else:
+                    v_unit_vector = np.zeros(3)
+                rpm, _, _ = self.ctrl.computeControl(control_timestep=self.AGGR_PHY_STEPS*self.TIMESTEP, 
+                                                    cur_pos=state[0:3],
+                                                    cur_quat=state[3:7],
+                                                    cur_vel=state[10:13],
+                                                    cur_ang_vel=state[13:16],
+                                                    target_pos=state[0:3], # same as the current position
+                                                    target_rpy=np.array([0,0,state[9]]), # keep current yaw
+                                                    target_vel=self.SPEED_LIMIT * np.abs(action[3]) * v_unit_vector # target the desired velocity vector
+                                                    )
+                return rpm
+            elif self.ACT_TYPE == ActionType.PID_Z_CONST: 
+                state = self._getDroneStateVector(0)
+                rpm, _, _ = self.ctrl.computeControl(control_timestep=self.AGGR_PHY_STEPS*self.TIMESTEP, 
+                                                    cur_pos=state[0:3],
+                                                    cur_quat=state[3:7],
+                                                    cur_vel=state[10:13],
+                                                    cur_ang_vel=state[13:16],
+                                                    target_pos=np.hstack([state[0:2]+0.1*action[0:2], state[2]]),
+                                                    target_rpy = np.array([0, 0, np.pi*action[3]+np.pi]) # aksi -1 to 1 -> yaw 0 to 2pi
+                                                    )
             else:
-                print("[ERROR] in BaseMultiagentAviary._preprocessAction(), ACT_TYPE is not JOYSTICK")      
+                print("[ERROR] in PayloadCoop._preprocessAction(), ACT_TYPE is not JOYSTICK")      
         return rpm   
 
     ################################################################################
@@ -317,9 +373,9 @@ class PayloadCoop(BaseMultiagentAviary):
             (22,)-shaped array of floats containing the normalized state of a single drone.
 
         """
-        COEF_TOL = 1.5
-        MAX_LIN_VEL_XY = self.K_MOVE * COEF_TOL
-        MAX_LIN_VEL_Z = self.K_MOVE * COEF_TOL
+        COEF_TOL = 1.3
+        MAX_LIN_VEL_XY = self.MAX_SPEED_KMH /3.6 * COEF_TOL
+        MAX_LIN_VEL_Z = self.MAX_SPEED_KMH /3.6 * COEF_TOL
         MAX_XY = self.MAX_XY * COEF_TOL
         MAX_Z = self.MAX_Z * COEF_TOL
         MAX_DIST_GOAL = np.sqrt(2*MAX_XY**2) * COEF_TOL
@@ -443,25 +499,28 @@ class PayloadCoop(BaseMultiagentAviary):
 
     ################################################################################
 
-    def _isObstacleNear(self, drone_id, sensor_dist = 1, min_dist_parallel = 0.5): # drone id dalam urutan ordinal, getClosestPoints harus
+    def _isObstacleNear(self, drone_id, sensor_dist = 1, sensor_angle = 10): # drone id dalam urutan ordinal, getClosestPoints harus
         obstacle_state = np.zeros(4)
         drone_state = self._getDroneStateVector(drone_id)
-        for obst_id in self.OBSTACLE_IDS:
+        for obst_id in list(self.DRONE_IDS[:drone_id]) + list(self.DRONE_IDS[drone_id+1:]) + self.OBSTACLE_IDS:  # sensor proximity membaca drone juga
+        # for obst_id in self.OBSTACLE_IDS:  # sensor proximity tidak membaca drone
             list_cp = p.getClosestPoints(self.DRONE_IDS[drone_id], obst_id, sensor_dist)
             if(len(list_cp) != 0): # ada obstacle didekat drone
                 for cp in list_cp:
                     x_dr, y_dr, z_dr = drone_state[0:3]
                     x_ob, y_ob, z_ob = cp[6]
-                    theta = np.arctan2(x_ob - x_dr, y_ob - y_dr) * 190 / np.pi
-                    eps = 2
-                    if((90-eps) < theta < (90+eps)): # x+
+                    theta = np.arctan2(y_ob - y_dr, x_ob - x_dr) * 180 / np.pi
+                    eps = sensor_angle
+                    if(-eps < theta < eps): #x+
                         obstacle_state[0] = 1
-                    elif((-90-eps) < theta <(-90+eps)): #x-
+                    elif((90-eps) < theta < (90+eps)): #y+
                         obstacle_state[1] = 1
-                    elif(-eps < theta < eps): #y+
+                    elif(-180 < theta <= (-180+eps) or (180-eps) < theta <= 180): #x-
                         obstacle_state[2] = 1
-                    elif((-180-eps) < theta <= -180  or (180-eps) < theta <= 180): #y-
-                        obstacle_state[1] = 1
+                    elif((-90-eps) < theta <(-90+eps)): #y-
+                        obstacle_state[3] = 1
+                    
+                    
 
                     # if(np.abs(y_ob - y_dr) < min_dist_parallel): # obstacle dan drone sejajar sumbu y
                     #     if(x_ob >= x_dr):
@@ -494,14 +553,17 @@ class PayloadCoop(BaseMultiagentAviary):
         self.OBSTACLE_IDS.append(id_) 
 
     def _addObstaclesAll(self):
-        for i in range(3):
-            self._addObstaclesAt([-i-0.5, 2, 0])
-            self._addObstaclesAt([i+0.5, 2, 0])
+        # for i in range(3):
+        #     self._addObstaclesAt([-i-0.5, 2, 0])
+        #     self._addObstaclesAt([i+0.5, 2, 0])
 
-        for i in range(3):
-            self._addObstaclesAt([-3.5, 2 - i, 0])
-            self._addObstaclesAt([3.5, 2 - i, 0])
+        # for i in range(3):
+        #     self._addObstaclesAt([-3.5, 2 - i, 0])
+        #     self._addObstaclesAt([3.5, 2 - i, 0])
         
-        for i in range(3):
-            self._addObstaclesAt([-3.5 + i, -1, 0])
-            self._addObstaclesAt([3.5 - i, -1, 0])
+        # for i in range(3):
+        #     self._addObstaclesAt([-3.5 + i, -1, 0])
+        #     self._addObstaclesAt([3.5 - i, -1, 0])
+
+            self._addObstaclesAt([-3, 0, 0])
+            self._addObstaclesAt([3, 0, 0])
