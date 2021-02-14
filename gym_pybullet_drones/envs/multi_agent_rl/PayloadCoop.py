@@ -30,41 +30,10 @@ class PayloadCoop(BaseMultiagentAviary):
                  obs: ObservationType=ObservationType.KIN,
                  act: ActionType=ActionType.JOYSTICK
                  ):
-        """Initialization of a generic multi-agent RL environment.
+        self.Z_CONST = 0.5
+        if(initial_xyzs == None):
+            initial_xyzs = self._initPositionCircle(num_drones, 0.5)
 
-        Attributes `vision_attributes` and `dynamics_attributes` are selected
-        based on the choice of `obs` and `act`; `obstacles` is set to True 
-        and overridden with landmarks for vision applications; 
-        `user_debug_gui` is set to False for performance.
-
-        Parameters
-        ----------
-        drone_model : DroneModel, optional
-            The desired drone type (detailed in an .urdf file in folder `assets`).
-        num_drones : int, optional
-            The desired number of drones in the aviary.
-        neighbourhood_radius : float, optional
-            Radius used to compute the drones' adjacency matrix, in meters.
-        initial_xyzs: ndarray | None, optional
-            (NUM_DRONES, 3)-shaped array containing the initial XYZ position of the drones.
-        initial_rpys: ndarray | None, optional
-            (NUM_DRONES, 3)-shaped array containing the initial orientations of the drones (in radians).
-        physics : Physics, optional
-            The desired implementation of PyBullet physics/custom dynamics.
-        freq : int, optional
-            The frequency (Hz) at which the physics engine steps.
-        aggregate_phy_steps : int, optional
-            The number of physics steps within one call to `BaseAviary.step()`.
-        gui : bool, optional
-            Whether to use PyBullet's GUI.
-        record : bool, optional
-            Whether to save a video of the simulation in folder `files/videos/`.
-        obs : ObservationType, optional
-            The type of observation space (kinematic information or vision)
-        act : ActionType, optional
-            The type of action space (1 or 3D; RPMS, thurst and torques, waypoint or velocity with PID control; etc.)
-
-        """
         super().__init__(drone_model=drone_model,
                          num_drones=num_drones,
                          neighbourhood_radius=neighbourhood_radius,
@@ -78,19 +47,15 @@ class PayloadCoop(BaseMultiagentAviary):
                          obs=obs,
                          act=act
                          )
-        # #### Set a limit on the maximum target speed ###############
-        # if act == ActionType.VEL:
-        #     self.SPEED_LIMIT = 0.03 * self.MAX_SPEED_KMH * (1000/3600)
 
-        self.MAX_DISTANCE_BETWEEN_DRONE = 1
+
+        self.MAX_DISTANCE_BETWEEN_DRONE = 1.5
         self.K_MOVE = 0.2 # seberapa jauh target pos untuk pid dengan cur pos
-        self.MAX_XY = 10
+        self.MAX_XY = 15
         self.MAX_Z = 2
         self.dest_point = dest_point
         self.OBSTACLE_IDS = []
         self.EPISODE_LEN_SEC = 10
-        self._addObstaclesAll()
-        # self.INIT_XYZS = np.array([[-0.2, 0, 0.5], [0.2, 0, 0.5]])
 
 
         # assert self.NUM_DRONES == 2, "Jumlah drone tidak 2"
@@ -99,15 +64,6 @@ class PayloadCoop(BaseMultiagentAviary):
     ################################################################################
 
     def _actionSpace(self):
-        """Returns the action space of the environment.
-
-        Returns
-        -------
-        dict[int, ndarray]
-            A Dict() of Box() of size 1, 3, or 3, depending on the action type,
-            indexed by drone Id in integer format.
-
-        """
         if(self.ACT_TYPE == ActionType.JOYSTICK):
             return spaces.Dict({i: spaces.Discrete(5) for i in range(self.NUM_DRONES)})
 
@@ -125,15 +81,6 @@ class PayloadCoop(BaseMultiagentAviary):
     ################################################################################
 
     def _observationSpace(self):
-        """Returns the observation space of the environment.
-
-        Returns
-        -------
-        dict[int, ndarray]
-            A Dict with NUM_DRONES entries indexed by Id in integer format,
-            each a Box() os shape (H,W,4) or (12,) depending on the observation type.
-
-        """
         if self.OBS_TYPE == ObservationType.KIN:
             #(x,y,z, r,p,y, x_dot, y_dot, z_dot, r_dot,p_dot,y_dot, ob_x+,ob_y+,ob_x-,ob_y-, x_dest-x,y_dest-y,z_dest-z,  x_dr2-x,y_dr2-y,z_dr2-z .....)
             #12 + 4 state deteksi rintangan, 3 state jarak dengan tujuan, 3 state jarak dengan drone lain,
@@ -153,16 +100,6 @@ class PayloadCoop(BaseMultiagentAviary):
     ################################################################################
 
     def _computeObs(self):
-        """Returns the current observation of the environment.
-
-        Returns
-        -------
-        dict[int, ndarray]
-            A Dict with NUM_DRONES entries indexed by Id in integer format,
-            each a Box() os shape (H,W,4) or (12,) depending on the observation type.
-            
-
-        """
         if self.OBS_TYPE == ObservationType.KIN: 
             #### 12 + 4 state deteksi rintangan, 3 state jarak dengan tujuan,  3 state jarak dengan drone lain
             obs_all = np.zeros((self.NUM_DRONES,19 + 3*(self.NUM_DRONES - 1)), dtype = np.float32)
@@ -193,14 +130,6 @@ class PayloadCoop(BaseMultiagentAviary):
             print("[ERROR] in PayloadCoop._computeObs()")
 
     def _computeReward(self):
-        """Computes the current reward value(s).
-
-        Returns
-        -------
-        dict[int, float]
-            The reward value for each drone.
-
-        """
         drone_ids = self.getDroneIds()
         reward = 0.0
         rwd_hit = -1000
@@ -261,33 +190,23 @@ class PayloadCoop(BaseMultiagentAviary):
 
     ################################################################################
 
+    def reset(self):
+        temp = super().reset()
+        self._addObstaclesAll()
+        pos = self._initPositionCircle(self.NUM_DRONES, self.MAX_DISTANCE_BETWEEN_DRONE/3)
+        for i in range(self.NUM_DRONES) :
+            p.resetBasePositionAndOrientation(self.DRONE_IDS[i],
+                                            pos[i, :],
+                                            p.getBasePositionAndOrientation(self.DRONE_IDS[i])[1],
+                                            physicsClientId=self.CLIENT
+                                            )
+        return temp
+
+    ################################################################################
+
     def _preprocessAction(self,
                           action
                           ):
-        """Pre-processes the action passed to `.step()` into motors' RPMs.
-
-        Parameter `action` is processed differenly for each of the different
-        action types: the input to n-th drone, `action[n]` can be of length
-        1, 3, or 4, and represent RPMs, desired thrust and torques, or the next
-        target position to reach using PID control.
-
-        Parameter `action` is processed differenly for each of the different
-        action types: `action` can be of length 1, 3, or 4 and represent 
-        RPMs, desired thrust and torques, the next target position to reach 
-        using PID control, a desired velocity vector, etc.
-
-        Parameters
-        ----------
-        action : dict[str, ndarray]
-            The input action for each drone, to be translated into RPMs.
-
-        Returns
-        -------
-        ndarray
-            (NUM_DRONES, 4)-shaped array of ints containing to clipped RPMs
-            commanded to the 4 motors of each drone.
-
-        """
         K_MOVE = self.K_MOVE # max velocity K_MOVE m/s
         rpm = np.zeros((self.NUM_DRONES,4))
         for k, v in action.items():
@@ -375,20 +294,6 @@ class PayloadCoop(BaseMultiagentAviary):
     def _clipAndNormalizeState(self,
                                state
                                ):
-        """Normalizes a drone's state to the [-1,1] range.
-
-        Parameters
-        ----------
-        state : ndarray
-            (x,y,z, r,p,y, x_dot, y_dot, z_dot, r_dot,p_dot,y_dot, ob_x+,ob_x-,ob_y+,ob_y-, x_dr2-x, y_dr2-y,z_dr2-z, x_dest-x,y_dest-y,z_dest-z)
-            (22,)- 12 + 4 state deteksi rintangan, 3 state jarak dengan drone lain, 3 state jarak dengan tujuan, 
-
-        Returns
-        -------
-        ndarray
-            (22,)-shaped array of floats containing the normalized state of a single drone.
-
-        """
         COEF_TOL = 1.3
         MAX_LIN_VEL_XY = self.MAX_SPEED_KMH /3.6 * COEF_TOL
         MAX_LIN_VEL_Z = self.MAX_SPEED_KMH /3.6 * COEF_TOL
@@ -467,23 +372,6 @@ class PayloadCoop(BaseMultiagentAviary):
                                       clipped_vel_z,
                                       ):
         pass
-        # """Debugging printouts associated to `_clipAndNormalizeState`.
-
-        # Print a warning if values in a state vector is out of the clipping range.
-        
-        # """
-        # if not(clipped_pos_xy == np.array(state[0:2])).all():
-        #     print("[WARNING] it", self.step_counter, "in HoverAviary._clipAndNormalizeState(), clipped xy position [{:.2f} {:.2f}]".format(state[0], state[1]))
-        # if not(clipped_pos_z == np.array(state[2])).all():
-        #     print("[WARNING] it", self.step_counter, "in HoverAviary._clipAndNormalizeState(), clipped z position [{:.2f}]".format(state[2]))
-        # if not(clipped_rp == np.array(state[7:9])).all():
-        #     print("[WARNING] it", self.step_counter, "in HoverAviary._clipAndNormalizeState(), clipped roll/pitch [{:.2f} {:.2f}]".format(state[7], state[8]))
-        # if not(clipped_vel_xy == np.array(state[10:12])).all():
-        #     print("[WARNING] it", self.step_counter, "in HoverAviary._clipAndNormalizeState(), clipped xy velocity [{:.2f} {:.2f}]".format(state[10], state[11]))
-        # if not(clipped_vel_z == np.array(state[12])).all():
-        #     print("[WARNING] it", self.step_counter, "in HoverAviary._clipAndNormalizeState(), clipped z velocity [{:.2f}]".format(state[12]))
-    
-    ################################################################################
 
     def _getDistBetweenAllDrone(self, drone_id):
         obst_dist = np.zeros((3*(self.NUM_DRONES - 1)), dtype = np.float32)
@@ -560,51 +448,45 @@ class PayloadCoop(BaseMultiagentAviary):
                         obstacle_state[2] = 1
                     elif((-90-eps) < theta <(-90+eps)): #y-
                         obstacle_state[3] = 1
-                    
-                    
-
-                    # if(np.abs(y_ob - y_dr) < min_dist_parallel): # obstacle dan drone sejajar sumbu y
-                    #     if(x_ob >= x_dr):
-                    #         obstacle_state[0] = 1
-                    #     else:
-                    #         obstacle_state[1] = 1
-
-                    # elif(np.abs(x_ob - x_dr) < min_dist_parallel):
-                    #     if(y_ob >= y_dr):
-                    #         obstacle_state[2] = 1
-                    #     else:
-                    #         obstacle_state[3] = 1
         return obstacle_state
 
 
         ################################################################################
 
-    def _addObstaclesAt(self, position):
+    def _addObstaclesAt(self, position, orientation = [0, 0, 0], name = "cube_no_rotation.urdf"):
         """Add obstacles to the environment.
 
         Only if the observation is of type RGB, 4 landmarks are added.
         Overrides BaseAviary's method.
 
         """
-        id_ = p.loadURDF("cube_no_rotation.urdf",
+        id_ = p.loadURDF(name,
                     position,
-                    p.getQuaternionFromEuler([0, 0, 0]),
+                    p.getQuaternionFromEuler(orientation),
                     physicsClientId=self.CLIENT
                     )
         self.OBSTACLE_IDS.append(id_) 
 
     def _addObstaclesAll(self):
-        # for i in range(3):
-        #     self._addObstaclesAt([-i-0.5, 2, 0])
-        #     self._addObstaclesAt([i+0.5, 2, 0])
+        #Titik destinasi di random, rintangan di random (tapi sejajar dengan titik destinasi dan (0,0))
+        r = np.random.uniform(5, 12)
+        t = np.random.uniform(0, 2*np.pi)
+        self.dest_point = [r * np.cos(t), r * np.sin(t), self.Z_CONST]
+        p_obst = np.array(self.dest_point) / np.random.uniform(1.1, r/1.5)
+        or_obst = [0, 0, np.random.uniform(0, 2*np.pi)]
+        self._addObstaclesAt(p_obst, or_obst)
+        # self._addObstaclesAt(self.dest_point, name = 'duck_vhacd.urdf')
 
-        # for i in range(3):
-        #     self._addObstaclesAt([-3.5, 2 - i, 0])
-        #     self._addObstaclesAt([3.5, 2 - i, 0])
-        
-        # for i in range(3):
-        #     self._addObstaclesAt([-3.5 + i, -1, 0])
-        #     self._addObstaclesAt([3.5 - i, -1, 0])
 
-            self._addObstaclesAt([-3, 0, 0])
-            self._addObstaclesAt([3, 0, 0])
+    def _initPositionCircle(self, n_drone, r,random = True):
+        ps = np.zeros((n_drone, 3))
+        if(random):
+            t0 = np.random.uniform(0, 2*np.pi)
+        else:
+            t0 = 0
+        for i in range(n_drone):
+            x = r * np.cos((i*2*np.pi+t0)/n_drone)
+            y = r * np.sin((i*2*np.pi+t0)/n_drone)
+            z = self.Z_CONST
+            ps[i, :] = x, y, z
+        return ps
