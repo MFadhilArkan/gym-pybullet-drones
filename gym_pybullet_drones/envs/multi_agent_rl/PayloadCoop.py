@@ -93,7 +93,7 @@ class PayloadCoop(BaseMultiagentAviary):
         # self.INIT_XYZS = np.array([[-0.2, 0, 0.5], [0.2, 0, 0.5]])
 
 
-        assert self.NUM_DRONES == 2, "Jumlah drone tidak 2"
+        # assert self.NUM_DRONES == 2, "Jumlah drone tidak 2"
         assert dest_point[0] < self.MAX_XY and dest_point[1] < self.MAX_XY, "Posisi akhir diluar batas MAX_XY"
         
     ################################################################################
@@ -135,10 +135,16 @@ class PayloadCoop(BaseMultiagentAviary):
 
         """
         if self.OBS_TYPE == ObservationType.KIN:
-            #(x,y,z, r,p,y, x_dot, y_dot, z_dot, r_dot,p_dot,y_dot, ob_x+,ob_y+,ob_x-,ob_y-, x_dr2-x, y_dr2-y,z_dr2-z, x_dest-x,y_dest-y,z_dest-z)
-            #12 + 4 state deteksi rintangan, 3 state jarak dengan drone lain, 3 state jarak dengan tujuan, 
-            return spaces.Dict({i: spaces.Box(low=np.array([-1,-1,0, -1,-1,-1, -1,-1,-1, -1,-1,-1, 0,0,0,0, -1,-1,-1, -1,-1,-1]),
-                                              high=np.array([1,1,1,   1,1,1,    1,1,1,    1,1,1,   1,1,1,1,  1,1,1,    1,1,1]),
+            #(x,y,z, r,p,y, x_dot, y_dot, z_dot, r_dot,p_dot,y_dot, ob_x+,ob_y+,ob_x-,ob_y-, x_dest-x,y_dest-y,z_dest-z,  x_dr2-x,y_dr2-y,z_dr2-z .....)
+            #12 + 4 state deteksi rintangan, 3 state jarak dengan tujuan, 3 state jarak dengan drone lain,
+            dist_drone = np.ones((3*(self.NUM_DRONES - 1)))
+            low = np.array([-1,-1,0, -1,-1,-1, -1,-1,-1, -1,-1,-1, 0,0,0,0, -1,-1,-1])
+            high = np.array([1,1,1,   1,1,1,    1,1,1,    1,1,1,   1,1,1,1,  1,1,1])
+            low = np.hstack([low, -1 * dist_drone])
+            high = np.hstack([high, dist_drone])
+            
+            return spaces.Dict({i: spaces.Box(low=low,
+                                              high=high,
                                               dtype=np.float32
                                               ) for i in range(self.NUM_DRONES)})
         else:
@@ -158,20 +164,30 @@ class PayloadCoop(BaseMultiagentAviary):
 
         """
         if self.OBS_TYPE == ObservationType.KIN: 
-            #### 12 + 4 state deteksi rintangan, 3 state jarak dengan drone lain, 3 state jarak dengan tujuan, 
-            obs_22 = np.zeros((self.NUM_DRONES,22), dtype = np.float32)
+            #### 12 + 4 state deteksi rintangan, 3 state jarak dengan tujuan,  3 state jarak dengan drone lain
+            obs_all = np.zeros((self.NUM_DRONES,19 + 3*(self.NUM_DRONES - 1)), dtype = np.float32)
             
             for i in range(self.NUM_DRONES):
-                obs_kin = self._getDroneStateVector(i) # Kinematic drone 
-                obs_obstacle = self._isObstacleNear(i) # Obstacle
-                obs_dist_drone = self._getDroneStateVector((i + 1) % 2)[0:3] - obs_kin[0:3] # Jarak dengan drone lain
-                obs_dist_dest = self.dest_point - obs_kin[0:3] # Jarak dengan posisi tujuan
-                obs_22[i, :] = np.hstack([obs_kin[0:3], obs_kin[7:10], obs_kin[10:13], obs_kin[13:16], obs_obstacle, obs_dist_drone, obs_dist_dest]).reshape(22,)
-                obs_22[i, :] = self._clipAndNormalizeState(obs_22[i, :])   
-            return {i: obs_22[i, :] for i in range(self.NUM_DRONES)}
+                state = self._getDroneStateVector(i)
+                obs_all[i, 0:3] = state[0:3] # posisi
+                obs_all[i, 3:6] = state[7:10] # rpy
+                obs_all[i, 6:9] = state[10:13] # lin vel
+                obs_all[i, 9:12] = state[13:16] # ang vel
+                obs_all[i, 12:16] = self._isObstacleNear(i) # obstacle
+                obs_all[i, 16:19] = self.dest_point - state[0:3] # jarak dengan tujuan
+                obs_all[i, 19:] = self._getDistBetweenAllDrone(i) # jarak antar drone
+                obs_all[i, :] = self._clipAndNormalizeState(obs_all[i, :])  
+
+                # obs_kin = self._getDroneStateVector(i) # Kinematic drone 
+                # obs_obstacle = self._isObstacleNear(i) # Obstacle
+                # obs_dist_drone = self._getDistBetweenAllDrone(i) # untuk n drone
+                # obs_dist_dest = self.dest_point - obs_kin[0:3] # Jarak dengan posisi tujuan
+                # obs_all[i, :] = np.hstack([obs_kin[0:3], obs_kin[7:10], obs_kin[10:13], obs_kin[13:16], obs_obstacle, obs_dist_dest, obs_dist_drone]).reshape(22,)
+                # obs_all[i, :] = self._clipAndNormalizeState(obs_all[i, :])   
+            return {i: obs_all[i, :] for i in range(self.NUM_DRONES)}
 
             ## Observasi tanpa 12 state quadcopter
-            # return {i: obs_22[i, [12:]] for i in range(self.NUM_DRONES)}
+            # return {i: obs_all[i, [12:]] for i in range(self.NUM_DRONES)}
             ############################################################
         else:
             print("[ERROR] in PayloadCoop._computeObs()")
@@ -376,6 +392,7 @@ class PayloadCoop(BaseMultiagentAviary):
         COEF_TOL = 1.3
         MAX_LIN_VEL_XY = self.MAX_SPEED_KMH /3.6 * COEF_TOL
         MAX_LIN_VEL_Z = self.MAX_SPEED_KMH /3.6 * COEF_TOL
+        MAX_ANG_VEL = self.MAX_SPEED_KMH /3.6 * COEF_TOL * 0.9 # dikali jari jari
         MAX_XY = self.MAX_XY * COEF_TOL
         MAX_Z = self.MAX_Z * COEF_TOL
         MAX_DIST_GOAL = np.sqrt(2*MAX_XY**2) * COEF_TOL
@@ -391,6 +408,7 @@ class PayloadCoop(BaseMultiagentAviary):
         clipped_rp = np.clip(state[3:5], -MAX_PITCH_ROLL, MAX_PITCH_ROLL)
         clipped_vel_xy = np.clip(state[6:8], -MAX_LIN_VEL_XY, MAX_LIN_VEL_XY)
         clipped_vel_z = np.clip(state[8], -MAX_LIN_VEL_Z, MAX_LIN_VEL_Z)
+        clipped_ang_vel = np.clip(state[9:12], -MAX_ANG_VEL, MAX_ANG_VEL)
 
         
 
@@ -402,31 +420,41 @@ class PayloadCoop(BaseMultiagentAviary):
                                                clipped_vel_xy,
                                                clipped_vel_z
                                                )
+        state[0:2] = clipped_pos_xy / MAX_XY
+        state[2] = clipped_pos_z / MAX_Z
+        state[3:5] = clipped_rp / MAX_PITCH_ROLL
+        state[5] = state[5] / np.pi # No reason to clip
+        state[6:8] = clipped_vel_xy / MAX_LIN_VEL_XY
+        state[8] = clipped_vel_z / MAX_LIN_VEL_XY
+        state[9:12] = clipped_ang_vel / MAX_ANG_VEL
+        state[16:19] = state[16:19] / MAX_DIST_GOAL
+        state[19:]= state[19:] / MAX_DISTANCE_BETWEEN_DRONE                                       
+        return state
 
-        normalized_pos_xy = clipped_pos_xy / MAX_XY
-        normalized_pos_z = clipped_pos_z / MAX_Z
-        normalized_rp = clipped_rp / MAX_PITCH_ROLL
-        normalized_y = state[5] / np.pi # No reason to clip
-        normalized_vel_xy = clipped_vel_xy / MAX_LIN_VEL_XY
-        normalized_vel_z = clipped_vel_z / MAX_LIN_VEL_XY
-        normalized_ang_vel = state[9:12]/np.linalg.norm(state[9:12]) if np.linalg.norm(state[9:12]) != 0 else state[9:12]
+        # normalized_pos_xy = clipped_pos_xy / MAX_XY
+        # normalized_pos_z = clipped_pos_z / MAX_Z
+        # normalized_rp = clipped_rp / MAX_PITCH_ROLL
+        # normalized_y = state[5] / np.pi # No reason to clip
+        # normalized_vel_xy = clipped_vel_xy / MAX_LIN_VEL_XY
+        # normalized_vel_z = clipped_vel_z / MAX_LIN_VEL_XY
+        # normalized_ang_vel = state[9:12]/np.linalg.norm(state[9:12]) if np.linalg.norm(state[9:12]) != 0 else state[9:12]
+        # normalized_dist_goal = state[16:19] / MAX_DIST_GOAL
+        # normalized_dist_betw_drone = state[19:] / MAX_DISTANCE_BETWEEN_DRONE
 
-        normalized_dist_betw_drone = state[16:19] / MAX_DISTANCE_BETWEEN_DRONE
-        normalized_dist_goal = state[19:] / MAX_DIST_GOAL
+        # norm_and_clipped = np.hstack([normalized_pos_xy,
+        #                               normalized_pos_z,
+        #                               normalized_rp,
+        #                               normalized_y,
+        #                               normalized_vel_xy,
+        #                               normalized_vel_z,
+        #                               normalized_ang_vel,
+        #                               state[12:16],                                    
+        #                               normalized_dist_goal,
+        #                               normalized_dist_betw_drone
+        #                               ]).reshape(22,)
 
-        norm_and_clipped = np.hstack([normalized_pos_xy,
-                                      normalized_pos_z,
-                                      normalized_rp,
-                                      normalized_y,
-                                      normalized_vel_xy,
-                                      normalized_vel_z,
-                                      normalized_ang_vel,
-                                      state[12:16],
-                                      normalized_dist_betw_drone,
-                                      normalized_dist_goal
-                                      ]).reshape(22,)
-
-        return norm_and_clipped
+        # return norm_and_clipped
+        
     
     ################################################################################
     
@@ -457,11 +485,24 @@ class PayloadCoop(BaseMultiagentAviary):
     
     ################################################################################
 
+    def _getDistBetweenAllDrone(self, drone_id):
+        obst_dist = np.zeros((3*(self.NUM_DRONES - 1)), dtype = np.float32)
+        state_drone_main = self._getDroneStateVector(drone_id)
+        j = 0
+        for i in range(self.NUM_DRONES):
+            if(i != drone_id):
+                state_drone_sec = self._getDroneStateVector(i)
+                obst_dist[3*j: 3*j+3] = state_drone_sec[0:3] - state_drone_main[0:3]
+                j += 1
+        return obst_dist
+
+    ################################################################################
+
     def _isHitEverything(self, drone_ids):
         for i in range(len(drone_ids)):
             a, b = p.getAABB(drone_ids[i]) # Melihat batas posisi collision drone ke i
             list_obj = p.getOverlappingObjects(a, b) # Melihat objek2 yang ada di batas posisi collision
-            if(len(list_obj) > 6): # 1 Quadcopter memiliki 6 link/bagian
+            if(list_obj != None and len(list_obj) > 6): # 1 Quadcopter memiliki 6 link/bagian
                 print("Drone {}: _isHitEverything".format(i))
                 return True
         return False

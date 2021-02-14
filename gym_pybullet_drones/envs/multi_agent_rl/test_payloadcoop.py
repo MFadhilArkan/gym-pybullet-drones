@@ -55,9 +55,9 @@ if __name__ == "__main__":
     ARGS = parser.parse_args()
 
     #### Initialize the simulation #############################
-    R = 0.7
-    INIT_XYZS = np.array([[-0.2, 0, 0.5], [0.2, 0, 0.5]])
-    # INIT_XYZS = np.array([[R*np.cos((i/6)*2*np.pi+np.pi/2), R*np.sin((i/6)*2*np.pi+np.pi/2)-R, 0.5] for i in range(ARGS.num_drones)])
+    R = 0.3
+    # INIT_XYZS = np.array([[-0.2, 0, 0.5], [0.2, 0, 0.5]])
+    INIT_XYZS = np.array([[R*np.cos((i/6)*2*np.pi+np.pi/2), R*np.sin((i/6)*2*np.pi+np.pi/2)-R, 0.5] for i in range(ARGS.num_drones)])
     INIT_RPYS = np.array([[0, 0,  i * (np.pi/2)/ARGS.num_drones] for i in range(ARGS.num_drones)])
     AGGR_PHY_STEPS = int(ARGS.simulation_freq_hz/ARGS.control_freq_hz) if ARGS.aggregate else 1
     
@@ -81,17 +81,18 @@ if __name__ == "__main__":
 
     #### Run the simulation ####################################
     CTRL_EVERY_N_STEPS = int(np.floor(env.SIM_FREQ/ARGS.control_freq_hz))
-    action = {str(i): 0 for i in range(ARGS.num_drones)}
+    action = {str(i): 4 for i in range(ARGS.num_drones)}
     action['0'] =  4
-    action['1'] = 4
+    # action['1'] = 4
     START = time.time()
 
     for i in range(0, int(ARGS.duration_sec*env.SIM_FREQ), AGGR_PHY_STEPS):
 
         #### Step the simulation ###################################
         obs, reward, done, info = env.step(action)
-        print("drone 0: ", obs[0][12:16])
-        print("drone 1: ", obs[1][12:16], '\n')
+        print("drone 0: ", np.round(obs[0][9:12], 2), np.round(env._getDroneStateVector(0)[13:16], 2))
+        # print("drone 1: ", obs[1][12:16])
+        # print("drone 2: ", obs[2][12:16], '\n')
         
         
         ### Log the simulation ####################################
