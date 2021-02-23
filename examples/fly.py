@@ -130,7 +130,7 @@ if __name__ == "__main__":
     #### Initialize the controllers ############################
     if ARGS.drone in [DroneModel.CF2X, DroneModel.CF2P]:
         ctrl = [DSLPIDControl(drone_model=ARGS.drone) for i in range(ARGS.num_drones)]
-    elif ARGS.drone in [DroneModel.HB]:
+    elif ARGS.drone in [DroneModel.HB, DroneModel.ARDRONE2]:
         ctrl = [SimplePIDControl(drone_model=ARGS.drone) for i in range(ARGS.num_drones)]
 
     #### Run the simulation ####################################

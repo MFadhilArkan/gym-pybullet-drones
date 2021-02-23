@@ -80,7 +80,7 @@ class BaseMultiagentAviary(BaseAviary, MultiAgentEnv):
             os.environ['KMP_DUPLICATE_LIB_OK']='True'
             if drone_model in [DroneModel.CF2X, DroneModel.CF2P]:
                 self.ctrl = [DSLPIDControl(drone_model=DroneModel.CF2X) for i in range(num_drones)]
-            elif drone_model == DroneModel.HB:
+            elif drone_model in [DroneModel.HB, DroneModel.ARDRONE2]:
                 self.ctrl = [SimplePIDControl(drone_model=DroneModel.HB) for i in range(num_drones)]
             else:
                 print("[ERROR] in BaseMultiagentAviary.__init()__, no controller is available for the specified drone_model")

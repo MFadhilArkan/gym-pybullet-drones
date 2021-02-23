@@ -121,12 +121,11 @@ class SimplePIDControl(BaseControl):
 
         """
         self.control_counter += 1
-        if target_rpy[2]!=0:
-            print("\n[WARNING] ctrl it", self.control_counter, "in SimplePIDControl.computeControl(), desired yaw={:.0f}deg but locked to 0. for DroneModel.HB".format(target_rpy[2]*(180/np.pi)))
         thrust, computed_target_rpy, pos_e = self._simplePIDPositionControl(control_timestep,
                                                                             cur_pos,
                                                                             cur_quat,
-                                                                            target_pos
+                                                                            target_pos,
+                                                                            target_rpy
                                                                             )
         rpm = self._simplePIDAttitudeControl(control_timestep,
                                              thrust,
@@ -142,7 +141,8 @@ class SimplePIDControl(BaseControl):
                                   control_timestep,
                                   cur_pos,
                                   cur_quat,
-                                  target_pos
+                                  target_pos,
+                                  target_rpy
                                   ):
         """Simple PID position control (with yaw fixed to 0).
 

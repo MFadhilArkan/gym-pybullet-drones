@@ -98,8 +98,8 @@ class BaseSingleAgentAviary(BaseAviary):
                     self.TUNED_P_ATT = np.array([70000., 70000., 60000.])
                     self.TUNED_I_ATT = np.array([.0, .0, 500.])
                     self.TUNED_D_ATT = np.array([20000., 20000., 12000.])
-            elif drone_model == DroneModel.HB:
-                self.ctrl = SimplePIDControl(drone_model=DroneModel.HB)
+            elif drone_model in [DroneModel.HB, DroneModel.ARDRONE2]:
+                self.ctrl = SimplePIDControl(drone_model=drone_model)
                 if act == ActionType.TUN:
                     self.TUNED_P_POS = np.array([.1, .1, .2])
                     self.TUNED_I_POS = np.array([.0001, .0001, .0001])

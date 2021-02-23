@@ -1,0 +1,97 @@
+<?xml version="1.0" ?>
+
+<robot name="ardrone2">
+
+  <properties arm="0.1785" kf="1.295e-9"  km="2.65e-9" thrust2weight="2.11" max_speed_kmh="17.7" gnd_eff_coeff="0" prop_radius="0.068" drag_coeff_xy="2.5" drag_coeff_z="2.5" dw_coeff_1="0" dw_coeff_2="0" dw_coeff_3="-0" />
+
+  <link name="base_link"> 
+
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <mass value="0.429"/>
+      <inertia ixx="2.24e-3" ixy="0.0" ixz="0.0" iyy="2.98e-3" iyz="0.0" izz="4.8e-3"/>
+    </inertial>
+
+
+
+    <visual>
+      <origin rpy="0 0 55" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="./ardrone2.dae" scale=" 0.0001 0.0001 0.0001"/>
+      </geometry> 
+      <material name="grey">
+        <color rgba=".5 .5 .5 1"/>
+      </material> 
+    </visual>
+
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <cylinder radius=".22" length=".02"/>
+      </geometry>
+    </collision>  
+
+  </link>
+
+  <link name="prop0_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0.126 0.126 0"/>
+      <mass value="0"/>
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+    </inertial>
+  </link>
+  <joint name="prop0_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="prop0_link"/>
+  </joint>
+
+  <link name="prop1_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="-0.126 0.126 0"/>
+      <mass value="0"/>
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+    </inertial>
+  </link>
+  <joint name="prop1_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="prop1_link"/>
+  </joint>
+
+  <link name="prop2_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="-0.126 -0.126 0"/>
+      <mass value="0"/>
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+    </inertial>
+  </link>
+  <joint name="prop2_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="prop2_link"/>
+  </joint>
+
+  <link name="prop3_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0.126 -0.126 0"/>
+      <mass value="0"/>
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+    </inertial>
+  </link>
+  <joint name="prop3_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="prop3_link"/>
+  </joint>
+
+  <link name="center_of_mass_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <mass value="0"/>
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+    </inertial>
+  </link>
+  <joint name="center_of_mass_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="center_of_mass_link"/>
+  </joint>
+
+</robot>
+
