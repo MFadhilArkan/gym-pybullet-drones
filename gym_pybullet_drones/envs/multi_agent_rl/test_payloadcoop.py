@@ -51,7 +51,7 @@ if __name__ == "__main__":
     parser.add_argument('--obstacles',          default=True,       type=str2bool,      help='Whether to add obstacles to the environment (default: True)', metavar='')
     parser.add_argument('--simulation_freq_hz', default=240,        type=int,           help='Simulation frequency in Hz (default: 240)', metavar='')
     parser.add_argument('--control_freq_hz',    default=48,         type=int,           help='Control frequency in Hz (default: 48)', metavar='')
-    parser.add_argument('--duration_sec',       default=300,          type=int,           help='Duration of the simulation in seconds (default: 5)', metavar='')
+    parser.add_argument('--duration_sec',       default=1,          type=int,           help='Duration of the simulation in seconds (default: 5)', metavar='')
     ARGS = parser.parse_args()
 
     #### Initialize the simulation #############################
@@ -70,7 +70,8 @@ if __name__ == "__main__":
                          neighbourhood_radius=10,
                          freq=ARGS.simulation_freq_hz,
                          aggregate_phy_steps=AGGR_PHY_STEPS,
-                         gui=ARGS.gui)
+                         gui=ARGS.gui,
+                         episode_len_sec= ARGS.duration_sec)
 
     #### Obtain the PyBullet Client ID from the environment ####
     PYB_CLIENT = env.getPyBulletClient()
@@ -83,52 +84,15 @@ if __name__ == "__main__":
     #### Run the simulation ####################################
     CTRL_EVERY_N_STEPS = int(np.floor(env.SIM_FREQ/ARGS.control_freq_hz))
     action = {str(i): 4 for i in range(ARGS.num_drones)}
-    action['0'] =  4
-    # action['1'] = 4
     START = time.time()
     obs = env.reset()
-
+    return_ = 0
     for i in range(0, int(ARGS.duration_sec*env.SIM_FREQ), AGGR_PHY_STEPS):
 
         #### Step the simulation ###################################
         obs, reward, done, info = env.step(action)
-        # print("drone 0: ", np.round(obs[0][9:12], 2), np.round(env._getDroneStateVector(0)[13:16], 2))
-        # print("drone 1: ", obs[1][12:16])
-        # print("drone 2: ", obs[2][12:16], '\n')
-        
-        
-        ### Log the simulation ####################################
-        # for j in range(ARGS.num_drones):
-        #     state = env._getDroneStateVector(j)
-        #     if action[str(j)] == 0: # Arah X pos
-        #         target_pos = state[0:3] + env.K_MOVE * np.array([1, 0, 0])
-        #     elif action[str(j)] == 1: # Arah X neg
-        #         target_pos = state[0:3] + env.K_MOVE * np.array([-1, 0, 0])
-        #     elif action[str(j)] == 2: # Arah Y pos
-        #         target_pos = state[0:3] + env.K_MOVE * np.array([0, 1, 0])
-        #     elif action[str(j)] == 3: # Arah Y neg
-        #         target_pos = state[0:3] + env.K_MOVE * np.array([0, -1, 0])
-        #     elif action[str(j)] == 4: # Diam
-        #         target_pos = state[0:3]
-        #     else:
-        #         target_pos = state[0:3]
-        #     logger.log(drone=j,
-        #                timestamp=i/env.SIM_FREQ,
-        #                state= state,
-        #                control=np.hstack([target_pos, INIT_RPYS[j, :], np.zeros(6)])
-        #                )
-        #                #### 12 control targets:                                                                pos_x,
-        #                                                                                                      # pos_y,
-        #                                                                                                      # pos_z,                                                                                                          
-        #                                                                                                      # roll,
-        #                                                                                                      # pitch,
-        #                                                                                                      # yaw,
-        #                                                                                                      # vel_x, 
-        #                                                                                                      # vel_y,
-        #                                                                                                      # vel_z,
-        #                                                                                                      # ang_vel_x,
-        #                                                                                                      # ang_vel_y,
-        #                                                                                                      # ang_vel_z
+        return_ += reward[0]
+        print(return_)
 
         #### Printout ##############################################
         if i%env.SIM_FREQ == 0: #setiap 1 detik
@@ -156,6 +120,21 @@ if __name__ == "__main__":
     #### Save the simulation results ###########################
     logger.save()
 
+    for i in range(env.NUM_DRONES):
+        temp = ['X', 'Y', 'Z']
+        t = np.linspace(0, ARGS.duration_sec,ARGS.duration_sec*env.SIM_FREQ)
+        fig, axs = plt.subplots(3, figsize = (10,5))
+        plt.suptitle('Drone-{}'.format(i+1))
+        for j in range(3):
+            axs[j].plot(t, env.TARGET_HISTORY[i,:,j], label = "target")
+            axs[j].plot(t, env.POSITION_HISTORY[i,:,j], label = "position")
+            axs[j].grid()
+            axs[j].legend()
+            axs[j].set_xlabel('time (s)')
+            axs[j].set_ylabel('{} (m)'.format(temp[j]))
+        plt.show(block = False)
+    plt.show()
+ 
     #### Plot the simulation results ###########################
-    if ARGS.plot:
-        logger.plot()
+    # if ARGS.plot:
+    #     logger.plot()

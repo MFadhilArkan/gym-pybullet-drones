@@ -21,16 +21,17 @@ class ActionType(Enum):
     ONE_D_RPM = "one_d_rpm"     # 1D (identical input to all motors) with RPMs
     ONE_D_DYN = "one_d_dyn"     # 1D (identical input to all motors) with desired thrust and torques
     ONE_D_PID = "one_d_pid"     # 1D (identical input to all motors) with PID control
-    JOYSTICK =  "joystick"      # 0: Arah X pos, 1: Arah Y pos 3: Arah X neg, 4: Arah Y neg
-    PID_Z_CONST = 'pid_z_const' # PID hanya x, y dan yaw
+    JOYSTICK =  "joystick"      # add trajectory to 0: X pos, 1: Y pos 3: X neg, 4: Y neg
+    XY_YAW = "xy_yaw"           # x, y and yaw
+    XYZ_YAW = "xyz_yaw"         # x, y, z, and yaw
 ################################################################################
 
 class ObservationType(Enum):
     """Observation type enumeration class."""
     KIN = "kin"     # Kinematic information (pose, linear and angular velocities)
-    PAYLOAD = "payload"
     RGB = "rgb"     # RGB camera capture in each drone's POV 
-
+    PAYLOAD_Z_CONST = "payload_z_const"
+    PAYLOAD = "payload"
 ################################################################################
 
 class BaseSingleAgentAviary(BaseAviary):
