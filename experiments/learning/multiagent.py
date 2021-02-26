@@ -143,7 +143,7 @@ if __name__ == "__main__":
     parser.add_argument('--obs',         default='payload_z_const',        type=ObservationType,                                                     help='Help (default: ..)', metavar='')
     parser.add_argument('--act',         default='xy_yaw',  type=ActionType,                                                          help='Help (default: ..)', metavar='')
     parser.add_argument('--algo',        default='cc',         type=str,             choices=['cc'],                                     help='Help (default: ..)', metavar='')
-    parser.add_argument('--workers',     default=6,            type=int,                                                                 help='Help (default: ..)', metavar='')        
+    parser.add_argument('--workers',     default=5,            type=int,                                                                 help='Help (default: ..)', metavar='')        
     ARGS = parser.parse_args()
 
     #### Save directory ########################################

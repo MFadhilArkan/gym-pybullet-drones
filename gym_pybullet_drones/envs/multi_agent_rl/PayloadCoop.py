@@ -16,7 +16,7 @@ class PayloadCoop(BaseMultiagentAviary):
     ################################################################################
 
     def __init__(self,
-                 dest_point: np.ndarray = np.array([0, 6, 0.5]),
+                 dest_point: np.ndarray = np.array([0, 8, 0.5]),
                  episode_len_sec: float=60,
                  max_distance_between_drone: float=2,
                  drone_model: DroneModel=DroneModel.CF2X,
@@ -418,7 +418,7 @@ class PayloadCoop(BaseMultiagentAviary):
                             obstacle_state[3] = 1
 
         elif(self.ACT_TYPE in [ActionType.XY_YAW, ActionType.XYZ_YAW]):
-            obstacle_state = np.zeros(4)
+            obstacle_state = np.ones(4)
             drone_state = self._getDroneStateVector(drone_id)
             for obst_id in list(self.DRONE_IDS[:drone_id]) + list(self.DRONE_IDS[drone_id+1:]) + self.OBSTACLE_IDS:  # sensor proximity read drone
                 list_cp = p.getClosestPoints(self.DRONE_IDS[drone_id], obst_id, max_sensor_dist, physicsClientId = self.CLIENT)
@@ -464,7 +464,8 @@ class PayloadCoop(BaseMultiagentAviary):
         # self._addObstaclesAt(self.dest_point, name = 'duck_vhacd.urdf')
 
     def _resetDestPoint(self):
-        r = np.random.uniform(0.5, 1.5) * np.linalg.norm(self.DEST_POINT[0:2])
+        # r = np.random.uniform(0.5, 1.5) * np.linalg.norm(self.DEST_POINT[0:2])
+        r = np.linalg.norm(self.DEST_POINT[0:2])
         t = np.random.uniform(0, 2*np.pi)
         self.DEST_POINT = [r * np.cos(t), r * np.sin(t), self.Z_CONST]
 
