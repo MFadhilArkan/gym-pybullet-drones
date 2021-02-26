@@ -16,8 +16,8 @@ class PayloadCoop(BaseMultiagentAviary):
     ################################################################################
 
     def __init__(self,
-                 dest_point: np.ndarray = np.array([0, 10, 0.5]),
-                 episode_len_sec: float=10,
+                 dest_point: np.ndarray = np.array([0, 6, 0.5]),
+                 episode_len_sec: float=60,
                  max_distance_between_drone: float=2,
                  drone_model: DroneModel=DroneModel.CF2X,
                  num_drones: int=2,
@@ -25,8 +25,8 @@ class PayloadCoop(BaseMultiagentAviary):
                  initial_xyzs=None,
                  initial_rpys=None,
                  physics: Physics=Physics.PYB,
-                 freq: int=240,
-                 aggregate_phy_steps: int=1,
+                 freq: int=100,
+                 aggregate_phy_steps: int=20,
                  gui=False,
                  record=False, 
                  obs: ObservationType=ObservationType.PAYLOAD_Z_CONST,
@@ -199,7 +199,7 @@ class PayloadCoop(BaseMultiagentAviary):
     def reset(self):
         temp = super().reset()
         self._resetDestPoint()
-        self._addObstaclesAll()
+        
         pos = self._initPositionOnCircle(self.NUM_DRONES, self.MAX_DISTANCE_BETWEEN_DRONE/3)
         for i in range(self.NUM_DRONES) :
             p.resetBasePositionAndOrientation(self.DRONE_IDS[i],
@@ -207,6 +207,7 @@ class PayloadCoop(BaseMultiagentAviary):
                                             p.getBasePositionAndOrientation(self.DRONE_IDS[i])[1],
                                             physicsClientId=self.CLIENT
                                             )
+        self._addObstaclesAll()
         return temp
 
     ################################################################################
@@ -350,8 +351,8 @@ class PayloadCoop(BaseMultiagentAviary):
 
     def _isHitEverything(self, drone_ids):
         for i in range(len(drone_ids)):
-            a, b = p.getAABB(drone_ids[i]) # Melihat batas posisi collision drone ke i
-            list_obj = p.getOverlappingObjects(a, b) # Melihat objek2 yang ada di batas posisi collision
+            a, b = p.getAABB(drone_ids[i], physicsClientId = self.CLIENT) # Melihat batas posisi collision drone ke i
+            list_obj = p.getOverlappingObjects(a, b, physicsClientId = self.CLIENT) # Melihat objek2 yang ada di batas posisi collision
             if(list_obj != None and len(list_obj) > 6): # 1 Quadcopter memiliki 6 link/bagian
                 print("Drone {}: _isHitEverything".format(i))
                 return True
@@ -399,7 +400,7 @@ class PayloadCoop(BaseMultiagentAviary):
             obstacle_state = np.zeros(4)
             drone_state = self._getDroneStateVector(drone_id)
             for obst_id in list(self.DRONE_IDS[:drone_id]) + list(self.DRONE_IDS[drone_id+1:]) + self.OBSTACLE_IDS:  # sensor proximity read drone
-                list_cp = p.getClosestPoints(self.DRONE_IDS[drone_id], obst_id, max_sensor_dist)            
+                list_cp = p.getClosestPoints(self.DRONE_IDS[drone_id], obst_id, max_sensor_dist, physicsClientId = self.CLIENT)            
                 if(len(list_cp) != 0): # there is obstacle near drone
                     for cp in list_cp:
                         x_dr, y_dr, z_dr = drone_state[0:3]
@@ -419,7 +420,7 @@ class PayloadCoop(BaseMultiagentAviary):
             obstacle_state = np.zeros(4)
             drone_state = self._getDroneStateVector(drone_id)
             for obst_id in list(self.DRONE_IDS[:drone_id]) + list(self.DRONE_IDS[drone_id+1:]) + self.OBSTACLE_IDS:  # sensor proximity read drone
-                list_cp = p.getClosestPoints(self.DRONE_IDS[drone_id], obst_id, max_sensor_dist)
+                list_cp = p.getClosestPoints(self.DRONE_IDS[drone_id], obst_id, max_sensor_dist, physicsClientId = self.CLIENT)
                 if(len(list_cp) != 0): # there is obstacle near drone
                     for cp in list_cp:
                         x_dr, y_dr, z_dr = drone_state[0:3]

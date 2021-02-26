@@ -17,7 +17,7 @@ import pdb
 import math
 import numpy as np
 import pybullet as p
-import pickle
+import pickle5
 import matplotlib.pyplot as plt
 import gym
 from gym import error, spaces, utils
@@ -358,11 +358,19 @@ if __name__ == "__main__":
         print("[ERROR] unknown ActionType")
         exit()
     start = time.time()
-    for i in range(6*int(test_env.SIM_FREQ/test_env.AGGR_PHY_STEPS)): # Up to 6''
+
+    for i in range(100*int(test_env.SIM_FREQ/test_env.AGGR_PHY_STEPS)): # Up to 6''
         #### Deploy the policies ###################################
         temp = {}
-        temp[0] = policy0.compute_single_action(np.hstack([action[1], obs[1], obs[0]])) # Counterintuitive order, check params.json
-        temp[1] = policy1.compute_single_action(np.hstack([action[0], obs[0], obs[1]]))
+        if(ACT in [ActionType.JOYSTICK]):
+            act_array = np.zeros((2, 5))
+            act_array[0][action[0]] = 1
+            act_array[1][action[1]] = 1
+            temp[0] = policy0.compute_single_action(np.hstack([act_array[1], obs[1], obs[0]]))
+            temp[1] = policy1.compute_single_action(np.hstack([act_array[0], obs[0], obs[1]]))
+        else:
+            temp[0] = policy0.compute_single_action(np.hstack([action[1], obs[1], obs[0]])) # Counterintuitive order, check params.json
+            temp[1] = policy1.compute_single_action(np.hstack([action[0], obs[0], obs[1]]))
         action = {0: temp[0][0], 1: temp[1][0]}
         obs, reward, done, info = test_env.step(action)
         test_env.render()
@@ -374,9 +382,9 @@ if __name__ == "__main__":
                            control=np.zeros(12)
                            )
         sync(np.floor(i*test_env.AGGR_PHY_STEPS), start, test_env.TIMESTEP)
-        # if done["__all__"]: obs = test_env.reset() # OPTIONAL EPISODE HALT
+        if done["__all__"]: obs = test_env.reset() # OPTIONAL EPISODE HALT
     test_env.close()
-    logger.save_as_csv("ma") # Optional CSV save
+    # logger.save_as_csv("ma") # Optional CSV save
     logger.plot()
 
     #### Shut down Ray #########################################
