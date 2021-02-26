@@ -148,7 +148,7 @@ class PayloadCoop(BaseMultiagentAviary):
         reward = 0.0
         rwd_hit = -1e4
         rwd_toofar_drone = -1e3
-        rwd_arrive = 1e6
+        rwd_arrive = 1e4
         rwd_near_dest = -0.1 / self.SIM_FREQ * self.AGGR_PHY_STEPS
         rwd_time = -1 / self.SIM_FREQ * self.AGGR_PHY_STEPS # got -1 every second
         rwd_rpm = -1e-9 / self.SIM_FREQ * self.AGGR_PHY_STEPS
@@ -301,7 +301,8 @@ class PayloadCoop(BaseMultiagentAviary):
         clipped_vel_xy = np.clip(state[6:8], -MAX_LIN_VEL_XY, MAX_LIN_VEL_XY)
         clipped_vel_z = np.clip(state[8], -MAX_LIN_VEL_Z, MAX_LIN_VEL_Z)
         clipped_ang_vel = np.clip(state[9:12], -MAX_ANG_VEL, MAX_ANG_VEL)
-
+        clipped_dist_goal = np.clip(state[16:19], -MAX_DIST_GOAL, MAX_DIST_GOAL)
+        clipped_dist_drone = np.clip(state[19:], -MAX_DISTANCE_BETWEEN_DRONE, MAX_DISTANCE_BETWEEN_DRONE)
         
 
         if self.GUI:
@@ -319,8 +320,8 @@ class PayloadCoop(BaseMultiagentAviary):
         state[6:8] = clipped_vel_xy / MAX_LIN_VEL_XY
         state[8] = clipped_vel_z / MAX_LIN_VEL_XY
         state[9:12] = clipped_ang_vel / MAX_ANG_VEL
-        state[16:19] = state[16:19] / MAX_DIST_GOAL
-        state[19:]= state[19:] / MAX_DISTANCE_BETWEEN_DRONE                                       
+        state[16:19] = clipped_dist_goal / MAX_DIST_GOAL
+        state[19:]= clipped_dist_drone / MAX_DISTANCE_BETWEEN_DRONE                                       
         return state
         
     
@@ -395,7 +396,7 @@ class PayloadCoop(BaseMultiagentAviary):
 
     ################################################################################
 
-    def _isObstacleNear(self, drone_id, max_sensor_dist = 1, max_sensor_angle = 10): # drone_id (ordinal)
+    def _isObstacleNear(self, drone_id, max_sensor_dist = 2, max_sensor_angle = 10): # drone_id (ordinal)
         if(self.ACT_TYPE in [ActionType.JOYSTICK]):
             obstacle_state = np.zeros(4)
             drone_state = self._getDroneStateVector(drone_id)
@@ -430,13 +431,13 @@ class PayloadCoop(BaseMultiagentAviary):
                         eps = max_sensor_angle
                         yaw = drone_state[9] * 180 / np.pi
                         if(-eps < theta - yaw < eps): 
-                            obstacle_state[0] = dist / max_sensor_dist
+                            obstacle_state[0] = np.clip(dist / max_sensor_dist, 0, max_sensor_dist)
                         elif((90-eps) < theta - yaw < (90+eps)): 
-                            obstacle_state[1] = dist / max_sensor_dist
+                            obstacle_state[1] = np.clip(dist / max_sensor_dist, 0, max_sensor_dist)
                         elif(-180 < theta - yaw <= (-180+eps) or (180-eps) < theta - yaw <= 180): 
-                            obstacle_state[2] = dist / max_sensor_dist
+                            obstacle_state[2] = np.clip(dist / max_sensor_dist, 0, max_sensor_dist)
                         elif((-90-eps) < theta - yaw <(-90+eps)):
-                            obstacle_state[3] = dist / max_sensor_dist
+                            obstacle_state[3] = np.clip(dist / max_sensor_dist, 0, max_sensor_dist)
         return obstacle_state
 
 
