@@ -128,7 +128,7 @@ if __name__ == "__main__":
 
     #### Define and parse (optional) arguments for the script ##
     parser = argparse.ArgumentParser(description='Multi-agent reinforcement learning experiments script')
-    parser.add_argument('--exp',    default = "save-payloadcoop-2-cc-payload-joystick-02.26.2021_11.26.19", type=str,       help='Help (default: ..)', metavar='')
+    parser.add_argument('--exp',    default = "experiments/learning/results/save-payloadcoop-2-cc-payload-joystick-02.26.2021_11.26.19", type=str,       help='Help (default: ..)', metavar='')
     ARGS = parser.parse_args()
 
     #### Parameters to recreate the environment ################
@@ -168,9 +168,9 @@ if __name__ == "__main__":
     if OBS == ObservationType.KIN:
         OWN_OBS_VEC_SIZE = 12
     elif OBS == ObservationType.PAYLOAD_Z_CONST:
-        OWN_OBS_VEC_SIZE = 4+3+ 3*(NUM_DRONES - 1)
-    elif OBS == ObservationType.PAYLOAD:
         OWN_OBS_VEC_SIZE = 4+2+ 2*(NUM_DRONES - 1)
+    elif OBS == ObservationType.PAYLOAD:
+        OWN_OBS_VEC_SIZE = 4+3+ 3*(NUM_DRONES - 1)
     elif OBS == ObservationType.RGB:
         print("[ERROR] ObservationType.RGB for multi-agent systems not yet implemented")
         exit()
