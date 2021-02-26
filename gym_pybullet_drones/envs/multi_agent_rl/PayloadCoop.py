@@ -17,7 +17,7 @@ class PayloadCoop(BaseMultiagentAviary):
 
     def __init__(self,
                  dest_point: np.ndarray = np.array([0, 10, 0.5]),
-                 radius_init_pos: float=2,
+                 radius_init_pos: float=0.9,
                  episode_len_sec: float=10,
                  drone_model: DroneModel=DroneModel.CF2X,
                  num_drones: int=2,
@@ -52,7 +52,7 @@ class PayloadCoop(BaseMultiagentAviary):
 
         self.RADIUS_INIT_POS = radius_init_pos
         self.Z_CONST = dest_point[2]
-        self.MAX_DISTANCE_BETWEEN_DRONE = 1.5
+        self.MAX_DISTANCE_BETWEEN_DRONE = 2
         self.MAX_XY = 20
         self.MAX_Z = 3
         self.DEST_POINT = dest_point
@@ -64,7 +64,7 @@ class PayloadCoop(BaseMultiagentAviary):
 
         # assert self.NUM_DRONES == 2, "NUM_DRONES is not 2"
         assert self.DEST_POINT[0] < self.MAX_XY and self.DEST_POINT[1] < self.MAX_XY, "1.5 * dest_point exceeds MAX_XY"
-        
+        assert self.RADIUS_INIT_POS < self.MAX_DISTANCE_BETWEEN_DRONE, "RADIUS_INIT_POS < MAX_DISTANCE_BETWEEN_DRONE"
     ################################################################################
 
     def _actionSpace(self):
@@ -274,8 +274,8 @@ class PayloadCoop(BaseMultiagentAviary):
                 print("[ERROR] in BaseMultiagentAviary._preprocessAction()")
                 exit()
 
-            self.TARGET_HISTORY[int(k), self.step_counter, :] = target_pos
-            self.POSITION_HISTORY[int(k), self.step_counter, :] = state[0:3] 
+            # self.TARGET_HISTORY[int(k), self.step_counter, :] = target_pos
+            # self.POSITION_HISTORY[int(k), self.step_counter, :] = state[0:3] 
         return rpm
 
     ################################################################################
@@ -471,6 +471,7 @@ class PayloadCoop(BaseMultiagentAviary):
 
 
     def _initPositionOnCircle(self, n_drone, r = None, z = None, random = True):
+        
         if(r == None):
             r = self.RADIUS_INIT_POS
         if(z == None):

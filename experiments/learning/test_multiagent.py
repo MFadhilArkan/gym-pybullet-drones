@@ -39,6 +39,7 @@ from ray.rllib.models import ModelCatalog
 from ray.rllib.policy.sample_batch import SampleBatch
 
 from gym_pybullet_drones.envs.BaseAviary import DroneModel, Physics
+from gym_pybullet_drones.envs.multi_agent_rl.PayloadCoop import PayloadCoop
 from gym_pybullet_drones.envs.multi_agent_rl.FlockAviary import FlockAviary
 from gym_pybullet_drones.envs.multi_agent_rl.LeaderFollowerAviary import LeaderFollowerAviary
 from gym_pybullet_drones.envs.multi_agent_rl.MeetupAviary import MeetupAviary
@@ -98,10 +99,12 @@ class FillInActions(DefaultCallbacks):
         to_update = postprocessed_batch[SampleBatch.CUR_OBS]
         other_id = 1 if agent_id == 0 else 0
         action_encoder = ModelCatalog.get_preprocessor_for_space( 
-                                                                 Box(-np.inf, np.inf, (ACTION_VEC_SIZE,), np.float32) # Unbounded
+                                                                 # Box(-np.inf, np.inf, (ACTION_VEC_SIZE,), np.float32) # Unbounded
+                                                                 Box(-1, 1, (ACTION_VEC_SIZE,), np.float32) # Bounded
                                                                  )
         _, opponent_batch = original_batches[other_id]
-        opponent_actions = np.array([action_encoder.transform(a) for a in opponent_batch[SampleBatch.ACTIONS]])
+        # opponent_actions = np.array([action_encoder.transform(a) for a in opponent_batch[SampleBatch.ACTIONS]]) # Unbounded
+        opponent_actions = np.array([action_encoder.transform(np.clip(a, -1, 1)) for a in opponent_batch[SampleBatch.ACTIONS]]) # Bounded
         to_update[:, -ACTION_VEC_SIZE:] = opponent_actions
 
 ############################################################
@@ -125,12 +128,12 @@ if __name__ == "__main__":
 
     #### Define and parse (optional) arguments for the script ##
     parser = argparse.ArgumentParser(description='Multi-agent reinforcement learning experiments script')
-    parser.add_argument('--exp',   default='experiments/learning/results/save-meetup-2-cc-kin-rpm-02.07.2021_19.40.14', type=str,       help='Help (default: ..)', metavar='')
+    parser.add_argument('--exp',    default = "save-payloadcoop-2-cc-payload-joystick-02.26.2021_11.26.19", type=str,       help='Help (default: ..)', metavar='')
     ARGS = parser.parse_args()
 
     #### Parameters to recreate the environment ################
     NUM_DRONES = int(ARGS.exp.split("-")[2])
-    OBS = ObservationType.KIN if ARGS.exp.split("-")[4] == 'kin' else ObservationType.RGB
+    # OBS = ObservationType.KIN if ARGS.exp.split("-")[4] == 'kin' else ObservationType.RGB
     if ARGS.exp.split("-")[5] == 'rpm':
         ACT = ActionType.RPM
     elif ARGS.exp.split("-")[5] == 'dyn':
@@ -145,21 +148,41 @@ if __name__ == "__main__":
         ACT = ActionType.ONE_D_DYN
     elif ARGS.exp.split("-")[5] == 'one_d_pid':
         ACT = ActionType.ONE_D_PID
+    elif ARGS.exp.split("-")[5] == 'joystick':
+        ACT = ActionType.JOYSTICK
+    elif ARGS.exp.split("-")[5] == 'xy_yaw':
+        ACT = ActionType.XY_YAW
+    elif ARGS.exp.split("-")[5] == 'xyz_yaw':
+        ACT = ActionType.XYZ_YAW
+
+    if ARGS.exp.split("-")[4] == 'kin':
+        OBS = ObservationType.KIN
+    elif ARGS.exp.split("-")[4] == 'payload':
+        OBS = ObservationType.PAYLOAD
+    elif ARGS.exp.split("-")[4] == 'payload_z_const':
+        OBS = ObservationType.PAYLOAD_Z_CONST
+    else:
+        OBS = ObservationType.RGB
 
     #### Constants, and errors #################################
     if OBS == ObservationType.KIN:
         OWN_OBS_VEC_SIZE = 12
+    elif OBS == ObservationType.PAYLOAD_Z_CONST:
+        OWN_OBS_VEC_SIZE = 4+3+ 3*(NUM_DRONES - 1)
+    elif OBS == ObservationType.PAYLOAD:
+        OWN_OBS_VEC_SIZE = 4+2+ 2*(NUM_DRONES - 1)
     elif OBS == ObservationType.RGB:
         print("[ERROR] ObservationType.RGB for multi-agent systems not yet implemented")
         exit()
     else:
         print("[ERROR] unknown ObservationType")
         exit()
-    if ACT in [ActionType.ONE_D_RPM, ActionType.ONE_D_DYN, ActionType.ONE_D_PID]:
+
+    if ACT in [ActionType.ONE_D_RPM, ActionType.ONE_D_DYN, ActionType.ONE_D_PID, ActionType.JOYSTICK]:
         ACTION_VEC_SIZE = 1
-    elif ACT in [ActionType.RPM, ActionType.DYN, ActionType.VEL]:
+    elif ACT in [ActionType.RPM, ActionType.DYN, ActionType.VEL, ActionType.XYZ_YAW]:
         ACTION_VEC_SIZE = 4
-    elif ACT == ActionType.PID:
+    elif ACT in [ActionType.PID, ActionType.XY_YAW]:
         ACTION_VEC_SIZE = 3
     else:
         print("[ERROR] unknown ActionType")
@@ -167,7 +190,7 @@ if __name__ == "__main__":
 
     #### Initialize Ray Tune ###################################
     ray.shutdown()
-    ray.init(ignore_reinit_error=True)
+    ray.init(ignore_reinit_error=True, include_dashboard=True)
 
     #### Register the custom centralized critic model ##########
     ModelCatalog.register_custom_model("cc_model", CustomTorchCentralizedCriticModel)
@@ -195,6 +218,13 @@ if __name__ == "__main__":
                                                            act=ACT
                                                            )
                      )
+    elif ARGS.exp.split("-")[1] == 'payloadcoop':
+        register_env(temp_env_name, lambda _: PayloadCoop(num_drones=NUM_DRONES,
+                                                           aggregate_phy_steps=shared_constants.AGGR_PHY_STEPS,
+                                                           obs=OBS,
+                                                           act=ACT
+                                                           )
+                     )
     else:
         print("[ERROR] environment not yet implemented")
         exit()
@@ -214,6 +244,12 @@ if __name__ == "__main__":
                                         )
     elif ARGS.exp.split("-")[1] == 'meetup':
         temp_env = MeetupAviary(num_drones=NUM_DRONES,
+                                aggregate_phy_steps=shared_constants.AGGR_PHY_STEPS,
+                                obs=OBS,
+                                act=ACT
+                                )
+    elif ARGS.exp.split("-")[1] == 'payloadcoop':
+        temp_env = PayloadCoop(num_drones=NUM_DRONES,
                                 aggregate_phy_steps=shared_constants.AGGR_PHY_STEPS,
                                 obs=OBS,
                                 act=ACT
@@ -293,6 +329,14 @@ if __name__ == "__main__":
                                 gui=True,
                                 record=True
                                 )
+    elif ARGS.exp.split("-")[1] == 'payloadcoop':
+        test_env = PayloadCoop(num_drones=NUM_DRONES,
+                                aggregate_phy_steps=shared_constants.AGGR_PHY_STEPS,
+                                obs=OBS,
+                                act=ACT,
+                                gui=True,
+                                record=True
+                                )
     else:
         print("[ERROR] environment not yet implemented")
         exit()
@@ -304,21 +348,21 @@ if __name__ == "__main__":
                     )
     if ACT in [ActionType.ONE_D_RPM, ActionType.ONE_D_DYN, ActionType.ONE_D_PID]:
         action = {i: np.array([0]) for i in range(NUM_DRONES)}
-    elif ACT in [ActionType.RPM, ActionType.DYN, ActionType.VEL]:
+    elif ACT in [ActionType.RPM, ActionType.DYN, ActionType.VEL, ActionType.XYZ_YAW]:
         action = {i: np.array([0, 0, 0, 0]) for i in range(NUM_DRONES)}
-    elif ACT==ActionType.PID:
+    elif ACT in [ActionType.PID, ActionType.XY_YAW]:
          action = {i: np.array([0, 0, 0]) for i in range(NUM_DRONES)}
+    elif ACT in [ActionType.JOYSTICK]:
+        action = {i: 0 for i in range(NUM_DRONES)}
     else:
         print("[ERROR] unknown ActionType")
         exit()
     start = time.time()
     for i in range(6*int(test_env.SIM_FREQ/test_env.AGGR_PHY_STEPS)): # Up to 6''
         #### Deploy the policies ###################################
-        # print("Debug Obs", obs)
         temp = {}
-        temp[0] = policy0.compute_single_action(np.hstack([obs[0], obs[1], action[1]]))
-        temp[1] = policy1.compute_single_action(np.hstack([obs[1], obs[0], action[0]]))
-        # print("Debug Act", temp)
+        temp[0] = policy0.compute_single_action(np.hstack([action[1], obs[1], obs[0]])) # Counterintuitive order, check params.json
+        temp[1] = policy1.compute_single_action(np.hstack([action[0], obs[0], obs[1]]))
         action = {0: temp[0][0], 1: temp[1][0]}
         obs, reward, done, info = test_env.step(action)
         test_env.render()
@@ -332,6 +376,7 @@ if __name__ == "__main__":
         sync(np.floor(i*test_env.AGGR_PHY_STEPS), start, test_env.TIMESTEP)
         # if done["__all__"]: obs = test_env.reset() # OPTIONAL EPISODE HALT
     test_env.close()
+    logger.save_as_csv("ma") # Optional CSV save
     logger.plot()
 
     #### Shut down Ray #########################################
