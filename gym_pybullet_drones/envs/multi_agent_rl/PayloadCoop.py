@@ -26,15 +26,15 @@ class PayloadCoop(BaseMultiagentAviary):
                  initial_rpys=None,
                  physics: Physics=Physics.PYB,
                  freq: int=100,
-                 aggregate_phy_steps: int=20,
+                 aggregate_phy_steps: int=10,
                  gui=False,
                  record=False, 
                  obs: ObservationType=ObservationType.PAYLOAD_Z_CONST,
-                 act: ActionType=ActionType.JOYSTICK,                 
+                 act: ActionType=ActionType.XY_YAW,                 
                  ):
                  
         if(initial_xyzs == None):
-            initial_xyzs = self._initPositionOnCircle(num_drones, r = max_distance_between_drone/3, z = dest_point[2])
+            initial_xyzs = self._initPositionOnCircle(num_drones, r = max_distance_between_drone/4, z = dest_point[2])
 
         super().__init__(drone_model=drone_model,
                          num_drones=num_drones,
@@ -51,7 +51,7 @@ class PayloadCoop(BaseMultiagentAviary):
                          )
         self.Z_CONST = dest_point[2]
         self.MAX_DISTANCE_BETWEEN_DRONE = max_distance_between_drone
-        self.MAX_XY = 20
+        self.MAX_XY = 30
         self.MAX_Z = 3
         self.DEST_POINT = dest_point
         self.OBSTACLE_IDS = []
@@ -135,7 +135,7 @@ class PayloadCoop(BaseMultiagentAviary):
             elif self.OBS_TYPE == ObservationType.PAYLOAD_Z_CONST:
                 mask = np.arange(3*(self.NUM_DRONES - 1))
                 mask = (mask+1) % 3 != 0 # remove dist_betw_drone z state index
-                mask = np.hstack([[False]*12, [True]*7, mask]) # 12 drone state, 4 obst + 3 dist2dest                
+                mask = np.hstack([[False]*12, [True]*6, False, mask]) # 12 drone state, 4 obst + 3 dist2dest                
                 return {i: obs_all[i, mask] for i in range(self.NUM_DRONES)}
 
             elif self.OBS_TYPE == ObservationType.PAYLOAD:
@@ -354,7 +354,7 @@ class PayloadCoop(BaseMultiagentAviary):
             a, b = p.getAABB(drone_ids[i], physicsClientId = self.CLIENT) # Melihat batas posisi collision drone ke i
             list_obj = p.getOverlappingObjects(a, b, physicsClientId = self.CLIENT) # Melihat objek2 yang ada di batas posisi collision
             if(list_obj != None and len(list_obj) > 6): # 1 Quadcopter memiliki 6 link/bagian
-                print("Drone {}: _isHitEverything".format(i))
+                # print("Drone {}: _isHitEverything".format(i))
                 return True
         return False
 
@@ -370,7 +370,7 @@ class PayloadCoop(BaseMultiagentAviary):
                 dr2_states = self._getDroneStateVector(j)
                 dist = np.linalg.norm(dr1_states[0:3] - dr2_states[0:3])
                 if (dist > max_dist):
-                    print("Drone {}-{}: _isDroneTooFar".format(i, j))
+                    # print("Drone {}-{}: _isDroneTooFar".format(i, j))
                     return True
         return False
 
@@ -388,7 +388,7 @@ class PayloadCoop(BaseMultiagentAviary):
             dest = self.DEST_POINT
         centroid = self._getCentroid(drone_ids)
         if(np.linalg.norm(centroid - dest) < tol):
-            print("Drone ALL: _isArrive")
+            # print("Drone ALL: _isArrive")
             return True
         else:
             return False
@@ -471,7 +471,7 @@ class PayloadCoop(BaseMultiagentAviary):
     def _initPositionOnCircle(self, n_drone, r = None, z = None, random = True):
         
         if(r == None):
-            r = self.MAX_DISTANCE_BETWEEN_DRONE / 3
+            r = self.MAX_DISTANCE_BETWEEN_DRONE / 4
         if(z == None):
             z = self.Z_CONST
         ps = np.zeros((n_drone, 3))

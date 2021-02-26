@@ -139,11 +139,11 @@ if __name__ == "__main__":
     #### Define and parse (optional) arguments for the script ##
     parser = argparse.ArgumentParser(description='Multi-agent reinforcement learning experiments script')
     parser.add_argument('--num_drones',  default=2,            type=int,                                                                 help='Number of drones (default: 2)', metavar='')
-    parser.add_argument('--env',         default='meetup',      type=str,             choices=['leaderfollower', 'flock', 'meetup'],      help='Help (default: ..)', metavar='')
-    parser.add_argument('--obs',         default='kin',        type=ObservationType,                                                     help='Help (default: ..)', metavar='')
-    parser.add_argument('--act',         default='pid',  type=ActionType,                                                          help='Help (default: ..)', metavar='')
+    parser.add_argument('--env',         default='payloadcoop',      type=str,             choices=['leaderfollower', 'flock', 'meetup', 'payloadcoop'],      help='Help (default: ..)', metavar='')
+    parser.add_argument('--obs',         default='payload_z_const',        type=ObservationType,                                                     help='Help (default: ..)', metavar='')
+    parser.add_argument('--act',         default='xy_yaw',  type=ActionType,                                                          help='Help (default: ..)', metavar='')
     parser.add_argument('--algo',        default='cc',         type=str,             choices=['cc'],                                     help='Help (default: ..)', metavar='')
-    parser.add_argument('--workers',     default=5,            type=int,                                                                 help='Help (default: ..)', metavar='')        
+    parser.add_argument('--workers',     default=6,            type=int,                                                                 help='Help (default: ..)', metavar='')        
     ARGS = parser.parse_args()
 
     #### Save directory ########################################
@@ -162,17 +162,21 @@ if __name__ == "__main__":
     elif ARGS.obs==ObservationType.RGB:
         print("[ERROR] ObservationType.RGB for multi-agent systems not yet implemented")
         exit()
+    elif ARGS.obs == ObservationType.PAYLOAD_Z_CONST:
+        OWN_OBS_VEC_SIZE = 4+2+ 2*(ARGS.num_drones - 1)
+    elif ARGS.obs == ObservationType.PAYLOAD:
+        OWN_OBS_VEC_SIZE = 4+3+ 3*(ARGS.num_drones - 1)  
     else:
         print("[ERROR] unknown ObservationType")
         exit()
-    if ARGS.act in [ActionType.ONE_D_RPM, ActionType.ONE_D_DYN, ActionType.ONE_D_PID]:
+
+    if ARGS.act in [ActionType.ONE_D_RPM, ActionType.ONE_D_DYN, ActionType.ONE_D_PID, ActionType.JOYSTICK]:
         ACTION_VEC_SIZE = 1
-    elif ARGS.act in [ActionType.RPM, ActionType.DYN, ActionType.VEL]:
+    elif ARGS.act in [ActionType.RPM, ActionType.DYN, ActionType.VEL, ActionType.XYZ_YAW]:
         ACTION_VEC_SIZE = 4
-    elif ARGS.act == ActionType.PID:
+    elif ARGS.act in [ActionType.PID, ActionType.XY_YAW]:
         ACTION_VEC_SIZE = 3
-    elif ARGS.act == ActionType.JOYSTICK:
-        ACTION_VEC_SIZE = 1
+
     else:
         print("[ERROR] unknown ActionType")
         exit()
@@ -210,7 +214,7 @@ if __name__ == "__main__":
                                                            act=ARGS.act
                                                            )
                      )
-    elif ARGS.env == 'payload':
+    elif ARGS.env == 'payloadcoop':
         register_env(temp_env_name, lambda _: PayloadCoop(num_drones=ARGS.num_drones,
                                                            aggregate_phy_steps=shared_constants.AGGR_PHY_STEPS,
                                                            obs=ARGS.obs,
@@ -240,12 +244,11 @@ if __name__ == "__main__":
                                 obs=ARGS.obs,
                                 act=ARGS.act
                                 )
-    elif ARGS.env == 'payload':
+    elif ARGS.env == 'payloadcoop':
         temp_env = PayloadCoop(num_drones=ARGS.num_drones,
                                 aggregate_phy_steps=shared_constants.AGGR_PHY_STEPS,
                                 obs=ARGS.obs,
                                 act=ARGS.act,
-                                dest_point = [2, 2, 0.5]
                                 )
     else:
         print("[ERROR] environment not yet implemented")
