@@ -431,13 +431,13 @@ class PayloadCoop(BaseMultiagentAviary):
                         eps = max_sensor_angle
                         yaw = drone_state[9] * 180 / np.pi
                         if(-eps < theta - yaw < eps): 
-                            obstacle_state[0] = np.clip(dist / max_sensor_dist, 0, max_sensor_dist)
+                            obstacle_state[0] = np.clip(dist, 0, max_sensor_dist) / max_sensor_dist
                         elif((90-eps) < theta - yaw < (90+eps)): 
-                            obstacle_state[1] = np.clip(dist / max_sensor_dist, 0, max_sensor_dist)
+                            obstacle_state[1] = np.clip(dist, 0, max_sensor_dist) / max_sensor_dist
                         elif(-180 < theta - yaw <= (-180+eps) or (180-eps) < theta - yaw <= 180): 
-                            obstacle_state[2] = np.clip(dist / max_sensor_dist, 0, max_sensor_dist)
+                            obstacle_state[2] = np.clip(dist, 0, max_sensor_dist) / max_sensor_dist
                         elif((-90-eps) < theta - yaw <(-90+eps)):
-                            obstacle_state[3] = np.clip(dist / max_sensor_dist, 0, max_sensor_dist)
+                            obstacle_state[3] = np.clip(dist, 0, max_sensor_dist) / max_sensor_dist
         return obstacle_state
 
 

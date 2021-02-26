@@ -295,7 +295,7 @@ if __name__ == "__main__":
 
     #### Ray Tune stopping conditions ##########################
     stop = {
-        "timesteps_total": 100000, # 8000,
+        "timesteps_total": 150000, # 8000,
         # "episode_reward_mean": 0,
         # "training_iteration": 0,
     }
