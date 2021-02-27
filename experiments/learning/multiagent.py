@@ -113,6 +113,9 @@ class FillInActions(DefaultCallbacks):
         action_encoder = ModelCatalog.get_preprocessor_for_space( 
                                                                  Box(-np.inf, np.inf, (ACTION_VEC_SIZE,), np.float32) # Unbounded
                                                                  )
+        # action_encoder = ModelCatalog.get_preprocessor_for_space( 
+        #                                                          Discrete(ACTION_VEC_SIZE) # Unbounded
+        #                                                          )
         _, opponent_batch = original_batches[other_id]
         opponent_actions = np.array([action_encoder.transform(a) for a in opponent_batch[SampleBatch.ACTIONS]])
         to_update[:, -ACTION_VEC_SIZE:] = opponent_actions
@@ -151,10 +154,10 @@ if __name__ == "__main__":
     if not os.path.exists(filename):
         os.makedirs(filename+'/')
 
-    #### Print out current git commit hash #####################
-    git_commit = subprocess.check_output(["git", "describe", "--tags"]).strip()
-    with open(filename+'/git_commit.txt', 'w+') as f:
-        f.write(str(git_commit))
+    # #### Print out current git commit hash #####################
+    # git_commit = subprocess.check_output(["git", "describe", "--tags"]).strip()
+    # with open(filename+'/git_commit.txt', 'w+') as f:
+    #     f.write(str(git_commit))
 
     #### Constants, and errors #################################
     if ARGS.obs==ObservationType.KIN:
@@ -276,6 +279,8 @@ if __name__ == "__main__":
         "batch_mode": "complete_episodes",
         "callbacks": FillInActions,
         "framework": "torch",
+        "lr" : 3e-4,
+        "gamma": 0.9,
     }
 
     #### Set up the model parameters of the trainer's config ###
@@ -308,7 +313,9 @@ if __name__ == "__main__":
         verbose=3,
         checkpoint_at_end=True,
         local_dir=filename,
-        restore="/experiments/learning/results/save-payloadcoop-2-cc-payload_z_const-xy_yaw-02.27.2021_09.30.54/checkpoint.txt"
+        checkpoint_freq=10,
+        max_failures=-1,
+        # restore="/experiments/learning/results/save-payloadcoop-2-cc-payload_z_const-xy_yaw-02.27.2021_09.30.54/checkpoint.txt"
     )
     # check_learning_achieved(results, 1.0)
 
