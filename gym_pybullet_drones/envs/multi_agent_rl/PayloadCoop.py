@@ -16,9 +16,9 @@ class PayloadCoop(BaseMultiagentAviary):
     ################################################################################
 
     def __init__(self,
-                 dest_point: np.ndarray = np.array([0, 8, 0.5]),
+                 dest_point: np.ndarray = np.array([0, 6, 0.5]),
                  episode_len_sec: float=60,
-                 max_distance_between_drone: float=2,
+                 max_distance_between_drone: float=1,
                  drone_model: DroneModel=DroneModel.CF2X,
                  num_drones: int=2,
                  neighbourhood_radius: float=np.inf,
@@ -56,7 +56,7 @@ class PayloadCoop(BaseMultiagentAviary):
         self.DEST_POINT = dest_point
         self.OBSTACLE_IDS = []
         self.EPISODE_LEN_SEC = episode_len_sec
-        self.K_MOVE = 2 # For ActionType.Joystick
+        self.K_MOVE = 0.1 # For ActionType.Joystick
         self.TARGET_HISTORY = np.zeros((self.NUM_DRONES, int(self.SIM_FREQ * self.EPISODE_LEN_SEC / self.AGGR_PHY_STEPS), 3))
         self.POSITION_HISTORY = np.zeros((self.NUM_DRONES, int(self.SIM_FREQ * self.EPISODE_LEN_SEC / self.AGGR_PHY_STEPS), 3))
 
@@ -149,9 +149,10 @@ class PayloadCoop(BaseMultiagentAviary):
         rwd_hit = -1e4
         rwd_toofar_drone = -1e3
         rwd_arrive = 1e4
-        rwd_near_dest = -0.1 / self.SIM_FREQ * self.AGGR_PHY_STEPS
-        rwd_time = -1 / self.SIM_FREQ * self.AGGR_PHY_STEPS # got -1 every second
-        rwd_rpm = -1e-9 / self.SIM_FREQ * self.AGGR_PHY_STEPS
+        rwd_dest = -0.1 / self.SIM_FREQ * self.AGGR_PHY_STEPS
+        rwd_time = -0/ self.SIM_FREQ * self.AGGR_PHY_STEPS # got -1 every second
+        rwd_rpm = -0 / self.SIM_FREQ * self.AGGR_PHY_STEPS
+        rwd_dist_z = -1 / self.SIM_FREQ * self.AGGR_PHY_STEPS
 
         if(self._isHitEverything(drone_ids)):
             reward += rwd_hit
@@ -163,12 +164,17 @@ class PayloadCoop(BaseMultiagentAviary):
             reward += rwd_arrive
 
         # Approaching dest
-        reward += rwd_near_dest * np.linalg.norm(self._getCentroid(self.getDroneIds()) - self.DEST_POINT)
+        reward += rwd_dest * np.linalg.norm(self._getCentroid(self.getDroneIds()) - self.DEST_POINT)
         
         # Time reward
         reward += rwd_time
         rewards = {i: reward for i in range(len(drone_ids))}
         
+        # Keep Z constant
+        for i in range(len(drone_ids)):
+            drone_states = self._getDroneStateVector(i)
+            rewards[i] += rwd_dist_z * np.linalg.norm(drone_states[2] - self.Z_CONST)
+
         # Energy usage
         RPM_eq = ((self.M * self.G) / (4 * self.KF))**0.5 
         for i in range(len(drone_ids)):
@@ -458,9 +464,11 @@ class PayloadCoop(BaseMultiagentAviary):
         self.OBSTACLE_IDS.append(id_) 
 
     def _addObstaclesAll(self):
-        p_obst = np.array(self.DEST_POINT) / np.random.uniform(1.1, np.linalg.norm(self.DEST_POINT[0:2])/1.5)
+        min_obst_dist_created = 1.5
+        p_obst = np.array(self.DEST_POINT) / np.random.uniform(1.1, np.linalg.norm(self.DEST_POINT[0:2])/min_obst_dist_created)
         or_obst = [0, 0, np.random.uniform(0, 2*np.pi)]
-        self._addObstaclesAt(p_obst, or_obst)
+        self._addObstaclesAt(p_obst, or_obst, "cube_no_rotation.urdf")
+        # self._addObstaclesAt(p_obst, or_obst, "cube_custom.urdf")
         # self._addObstaclesAt(self.dest_point, name = 'duck_vhacd.urdf')
 
     def _resetDestPoint(self):

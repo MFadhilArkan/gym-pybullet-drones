@@ -295,7 +295,7 @@ if __name__ == "__main__":
 
     #### Ray Tune stopping conditions ##########################
     stop = {
-        "timesteps_total": 150000, # 8000,
+        "timesteps_total": 15000, # 8000,
         # "episode_reward_mean": 0,
         # "training_iteration": 0,
     }
@@ -308,6 +308,7 @@ if __name__ == "__main__":
         verbose=3,
         checkpoint_at_end=True,
         local_dir=filename,
+        restore="/experiments/learning/results/save-payloadcoop-2-cc-payload_z_const-xy_yaw-02.27.2021_09.30.54/checkpoint.txt"
     )
     # check_learning_achieved(results, 1.0)
 
