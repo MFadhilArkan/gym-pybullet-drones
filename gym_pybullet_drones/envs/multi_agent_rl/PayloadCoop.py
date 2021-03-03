@@ -8,6 +8,7 @@ from gym_pybullet_drones.envs.BaseAviary import DroneModel, Physics, BaseAviary
 from gym_pybullet_drones.envs.single_agent_rl.BaseSingleAgentAviary import ActionType, ObservationType
 from gym_pybullet_drones.envs.multi_agent_rl.BaseMultiagentAviary import BaseMultiagentAviary
 from gym_pybullet_drones.utils.utils import nnlsRPM
+from experiments.learning import shared_constants
 #X merah, Y hijau, Z biru
 
 
@@ -16,21 +17,24 @@ class PayloadCoop(BaseMultiagentAviary):
     ################################################################################
 
     def __init__(self,
-                 dest_point: np.ndarray = np.array([0, 6, 0.5]),
-                 episode_len_sec: float=60,
-                 max_distance_between_drone: float=1,
-                 drone_model: DroneModel=DroneModel.CF2X,
-                 num_drones: int=2,
+                 dest_point: np.ndarray=np.array(shared_constants.DEST_POINT),
+                 episode_len_sec: float=shared_constants.EPISODE_LEN_SEC,
+                 max_distance_between_drone: float=shared_constants.MAX_DISTANCE_BETWEEN_DRONE,
+                 max_xy: float=shared_constants.MAX_XY,
+                 max_z: float=shared_constants.MAX_Z,
+                 k_move: float = shared_constants.K_MOVE,
+                 drone_model: DroneModel=DroneModel(shared_constants.DRONE_MODEL),
+                 num_drones: int=shared_constants.NUM_DRONES,
                  neighbourhood_radius: float=np.inf,
                  initial_xyzs=None,
                  initial_rpys=None,
-                 physics: Physics=Physics.PYB,
-                 freq: int=100,
-                 aggregate_phy_steps: int=10,
+                 physics: Physics=Physics(shared_constants.PHYSICS),
+                 freq: int=shared_constants.FREQ,
+                 aggregate_phy_steps: int=shared_constants.AGGR_PHY_STEPS,
                  gui=False,
                  record=False, 
-                 obs: ObservationType=ObservationType.PAYLOAD_Z_CONST,
-                 act: ActionType=ActionType.XY_YAW,                 
+                 obs: ObservationType=ObservationType(shared_constants.OBS),
+                 act: ActionType=ActionType(shared_constants.ACT),                 
                  ):
                  
         if(initial_xyzs == None):
@@ -51,17 +55,17 @@ class PayloadCoop(BaseMultiagentAviary):
                          )
         self.Z_CONST = dest_point[2]
         self.MAX_DISTANCE_BETWEEN_DRONE = max_distance_between_drone
-        self.MAX_XY = 30
-        self.MAX_Z = 3
+        self.MAX_XY = max_xy
+        self.MAX_Z = max_z
         self.DEST_POINT = dest_point
         self.OBSTACLE_IDS = []
         self.EPISODE_LEN_SEC = episode_len_sec
-        self.K_MOVE = 0.1 # For ActionType.Joystick
+        self.K_MOVE = k_move # For ActionType.Joystick, XY_YAW, XYZ_YAW
         self.TARGET_HISTORY = np.zeros((self.NUM_DRONES, int(self.SIM_FREQ * self.EPISODE_LEN_SEC / self.AGGR_PHY_STEPS), 3))
         self.POSITION_HISTORY = np.zeros((self.NUM_DRONES, int(self.SIM_FREQ * self.EPISODE_LEN_SEC / self.AGGR_PHY_STEPS), 3))
 
         # assert self.NUM_DRONES == 2, "NUM_DRONES is not 2"
-        assert self.DEST_POINT[0] < self.MAX_XY and self.DEST_POINT[1] < self.MAX_XY, "1.5 * dest_point exceeds MAX_XY"
+        assert self.DEST_POINT[0] < self.MAX_XY and self.DEST_POINT[1] < self.MAX_XY, "dest_point exceeds MAX_XY"
     ################################################################################
 
     def _actionSpace(self):
@@ -146,13 +150,13 @@ class PayloadCoop(BaseMultiagentAviary):
     def _computeReward(self):
         drone_ids = self.getDroneIds()
         reward = 0.0
-        rwd_hit = -1e4
-        rwd_toofar_drone = -1e3
-        rwd_arrive = 1e4
-        rwd_dest = -0.1 / self.SIM_FREQ * self.AGGR_PHY_STEPS
-        rwd_time = -0/ self.SIM_FREQ * self.AGGR_PHY_STEPS # got -1 every second
-        rwd_rpm = -0 / self.SIM_FREQ * self.AGGR_PHY_STEPS
-        rwd_dist_z = -1 / self.SIM_FREQ * self.AGGR_PHY_STEPS
+        rwd_hit = shared_constants.RWD_HIT
+        rwd_toofar_drone = shared_constants.RWD_TOOFAR_DRONE
+        rwd_arrive = shared_constants.RWD_ARRIVE
+        rwd_dest = shared_constants.RWD_DEST
+        rwd_time = shared_constants.RWD_TIME
+        rwd_rpm = shared_constants.RWD_RPM
+        rwd_dist_z =shared_constants.RWD_DIST_Z
 
         if(self._isHitEverything(drone_ids)):
             reward += rwd_hit
@@ -287,10 +291,10 @@ class PayloadCoop(BaseMultiagentAviary):
     def _clipAndNormalizeState(self,
                                state
                                ):
-        COEF_TOL = 1.3
+        STATE_TOL = shared_constants.STATE_TOL
         MAX_LIN_VEL_XY = self.MAX_SPEED_KMH /3.6 * COEF_TOL
         MAX_LIN_VEL_Z = self.MAX_SPEED_KMH /3.6 * COEF_TOL
-        MAX_ANG_VEL = self.MAX_SPEED_KMH /3.6 * COEF_TOL * 0.9 # dikali jari jari
+        MAX_ANG_VEL = self.MAX_SPEED_KMH /3.6 * COEF_TOL * self.COLLISION_R
         MAX_XY = self.MAX_XY * COEF_TOL
         MAX_Z = self.MAX_Z * COEF_TOL
         MAX_DIST_GOAL = np.sqrt(2*MAX_XY**2) * COEF_TOL
@@ -389,21 +393,31 @@ class PayloadCoop(BaseMultiagentAviary):
         centroid /= len(drone_ids)
         return centroid
 
-    def _isArrive(self, drone_ids, tol = 0.01, dest = None):
-        # Menghitung centroid of points dari kumpulan drone
+    def _isArrive(self, drone_ids, pos_tol = shared_constants.IS_ARRIVE_POS_TOL, 
+                  vel_tol = shared_constants.IS_ARRIVE_VEL_TOL, dest = None):
+
         if(dest == None):
             dest = self.DEST_POINT
         centroid = self._getCentroid(drone_ids)
-        if(np.linalg.norm(centroid - dest) < tol):
-            # print("Drone ALL: _isArrive")
+        
+        #check if all drone is not moving
+        is_not_move = True
+        for i in range(len(drone_ids)):
+            dr_states = self._getDroneStateVector(i)
+            if((dr_states[6:12] > vel_tol).any()):
+                is_not_move = False
+
+        if(np.linalg.norm(centroid - dest) < pos_tol and is_not_move):
+            print("Drone ALL: _isArrive")
             return True
         else:
             return False
 
     ################################################################################
 
-    def _isObstacleNear(self, drone_id, max_sensor_dist = 2, max_sensor_angle = 10): # drone_id (ordinal)
-        if(self.ACT_TYPE in [ActionType.JOYSTICK]):
+    def _isObstacleNear(self, drone_id, max_sensor_dist = shared_constants.MAX_SENSOR_DIST, 
+                        max_sensor_angle = shared_constants.MAX_SENSOR_ANGLE): # drone_id (ordinal)
+        if(shared_constants.SENSOR_MODE == 0):
             obstacle_state = np.zeros(4)
             drone_state = self._getDroneStateVector(drone_id)
             for obst_id in list(self.DRONE_IDS[:drone_id]) + list(self.DRONE_IDS[drone_id+1:]) + self.OBSTACLE_IDS:  # sensor proximity read drone
@@ -423,7 +437,7 @@ class PayloadCoop(BaseMultiagentAviary):
                         elif((-90-eps) < theta <(-90+eps)): #y-
                             obstacle_state[3] = 1
 
-        elif(self.ACT_TYPE in [ActionType.XY_YAW, ActionType.XYZ_YAW]):
+        elif(shared_constants.SENSOR_MODE == 1):
             obstacle_state = np.ones(4)
             drone_state = self._getDroneStateVector(drone_id)
             for obst_id in list(self.DRONE_IDS[:drone_id]) + list(self.DRONE_IDS[drone_id+1:]) + self.OBSTACLE_IDS:  # sensor proximity read drone
@@ -465,7 +479,7 @@ class PayloadCoop(BaseMultiagentAviary):
 
     def _addObstaclesAll(self):
         min_obst_dist_created = 1.5
-        p_obst = np.array(self.DEST_POINT) / np.random.uniform(1.1, np.linalg.norm(self.DEST_POINT[0:2])/min_obst_dist_created)
+        p_obst = np.random.uniform(shared_constants.MIN_DIST_FROM_ORIGIN, shared_constants.MAX_DIST_FROM_ORIGIN)
         or_obst = [0, 0, np.random.uniform(0, 2*np.pi)]
         self._addObstaclesAt(p_obst, or_obst, "cube_no_rotation.urdf")
         # self._addObstaclesAt(p_obst, or_obst, "cube_custom.urdf")

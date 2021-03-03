@@ -141,10 +141,10 @@ if __name__ == "__main__":
 
     #### Define and parse (optional) arguments for the script ##
     parser = argparse.ArgumentParser(description='Multi-agent reinforcement learning experiments script')
-    parser.add_argument('--num_drones',  default=2,            type=int,                                                                 help='Number of drones (default: 2)', metavar='')
-    parser.add_argument('--env',         default='payloadcoop',      type=str,             choices=['leaderfollower', 'flock', 'meetup', 'payloadcoop'],      help='Help (default: ..)', metavar='')
-    parser.add_argument('--obs',         default='payload_z_const',        type=ObservationType,                                                     help='Help (default: ..)', metavar='')
-    parser.add_argument('--act',         default='xy_yaw',  type=ActionType,                                                          help='Help (default: ..)', metavar='')
+    parser.add_argument('--num_drones',  default=shared_constants.NUM_DRONES,            type=int,                                                                 help='Number of drones (default: 2)', metavar='')
+    parser.add_argument('--env',         default=shared_constants.ENV,      type=str,             choices=['leaderfollower', 'flock', 'meetup', 'payloadcoop'],      help='Help (default: ..)', metavar='')
+    parser.add_argument('--obs',         default=shared_constants.OBS,        type=ObservationType,                                                     help='Help (default: ..)', metavar='')
+    parser.add_argument('--act',         default=shared_constants.ACT,  type=ActionType,                                                          help='Help (default: ..)', metavar='')
     parser.add_argument('--algo',        default='cc',         type=str,             choices=['cc'],                                     help='Help (default: ..)', metavar='')
     parser.add_argument('--workers',     default=5,            type=int,                                                                 help='Help (default: ..)', metavar='')        
     ARGS = parser.parse_args()
