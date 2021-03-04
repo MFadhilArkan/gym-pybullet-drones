@@ -24,6 +24,7 @@ class ActionType(Enum):
     JOYSTICK =  "joystick"      # add trajectory to 0: X pos, 1: Y pos 3: X neg, 4: Y neg
     XY_YAW = "xy_yaw"           # x, y and yaw
     XYZ_YAW = "xyz_yaw"         # x, y, z, and yaw
+    VEL_YAW = "vel_yaw"         # Velocity with yaw
 ################################################################################
 
 class ObservationType(Enum):
@@ -32,6 +33,7 @@ class ObservationType(Enum):
     RGB = "rgb"     # RGB camera capture in each drone's POV 
     PAYLOAD_Z_CONST = "payload_z_const"
     PAYLOAD = "payload"
+    PAYLOAD_ONE_SENSOR = "payload_one_sensor"
 ################################################################################
 
 class BaseSingleAgentAviary(BaseAviary):

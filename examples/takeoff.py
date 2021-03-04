@@ -38,7 +38,7 @@ if __name__ == "__main__":
 
     #### Define and parse (optional) arguments for the script ##
     parser = argparse.ArgumentParser(description='Helix flight script using CtrlAviary or VisionAviary and DSLPIDControl')
-    parser.add_argument('--drone',              default="ardrone2",     type=DroneModel,    help='Drone model (default: CF2X)', metavar='', choices=DroneModel)
+    parser.add_argument('--drone',              default="cf2x",     type=DroneModel,    help='Drone model (default: CF2X)', metavar='', choices=DroneModel)
     parser.add_argument('--num_drones',         default=1,          type=int,           help='Number of drones (default: 3)', metavar='')
     parser.add_argument('--physics',            default="pyb",      type=Physics,       help='Physics updates (default: PYB)', metavar='', choices=Physics)
     parser.add_argument('--vision',             default=False,      type=str2bool,      help='Whether to use VisionAviary (default: False)', metavar='')
@@ -59,7 +59,7 @@ if __name__ == "__main__":
     R = .3
     INIT_XYZS = np.zeros((ARGS.num_drones, 3))
     INIT_XYZS[0] = [0,0, 0]
-    INIT_XYZS[0] = [0.1,0, 0]
+    INIT_XYZS[0] = [0,0, 1]
     # INIT_XYZS[1] = [-0.2, 0.2, 0]
     # INIT_XYZS[2] = [0.2, -0.2, 0]
     # INIT_XYZS[3] = [-0.2, -0.2, 0]
@@ -164,11 +164,10 @@ if __name__ == "__main__":
             for j in range(ARGS.num_drones):
                 action[str(j)], _, _ = ctrl[j].computeControlFromState(control_timestep=CTRL_EVERY_N_STEPS*env.TIMESTEP,
                                                                        state=obs[str(j)]["state"],
-
-                                                                    #    target_pos=TARGET_POS[wp_counters[j], 0:3],
-                                                                    #    target_pos=np.hstack([INIT_XYZS[j, 0:2], 0.5]),
-                                                                       target_pos=INIT_XYZS[j, :] + [0,0,0.2],
-                                                                       target_rpy=INIT_RPYS[j, :]
+                                                                       target_pos=obs[str(j)]["state"][0:3],
+                                                                       target_rpy=obs[str(j)]["state"][7:10],
+                                                                       target_vel=[0,0,0],
+                                                                       target_rpy_rates=[0,0,1]
                                                                        )
 
             #### Go to the next way point and loop #####################

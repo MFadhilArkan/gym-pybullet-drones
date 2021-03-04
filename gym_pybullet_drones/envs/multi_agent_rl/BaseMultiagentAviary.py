@@ -76,7 +76,7 @@ class BaseMultiagentAviary(BaseAviary, MultiAgentEnv):
         self.ACT_TYPE = act
         self.EPISODE_LEN_SEC = 5
         #### Create integrated controllers #########################
-        if act in [ActionType.PID, ActionType.VEL, ActionType.ONE_D_PID, ActionType.JOYSTICK, ActionType.XYZ_YAW, ActionType.XY_YAW]:
+        if act in [ActionType.PID, ActionType.VEL, ActionType.ONE_D_PID, ActionType.JOYSTICK, ActionType.XYZ_YAW, ActionType.XY_YAW, ActionType.VEL_YAW]:
             os.environ['KMP_DUPLICATE_LIB_OK']='True'
             if drone_model in [DroneModel.CF2X, DroneModel.CF2P]:
                 self.ctrl = [DSLPIDControl(drone_model=DroneModel.CF2X) for i in range(num_drones)]

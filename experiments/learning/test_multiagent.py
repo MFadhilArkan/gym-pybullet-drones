@@ -154,6 +154,8 @@ if __name__ == "__main__":
         ACT = ActionType.XY_YAW
     elif ARGS.exp.split("-")[5] == 'xyz_yaw':
         ACT = ActionType.XYZ_YAW
+    elif ARGS.exp.split("-")[5] == 'vel_yaw':
+        ACT = ActionType.VEL_YAW
 
     if ARGS.exp.split("-")[4] == 'kin':
         OBS = ObservationType.KIN
@@ -161,6 +163,8 @@ if __name__ == "__main__":
         OBS = ObservationType.PAYLOAD
     elif ARGS.exp.split("-")[4] == 'payload_z_const':
         OBS = ObservationType.PAYLOAD_Z_CONST
+    elif ARGS.exp.split("-")[4] == 'payload_z_const':
+        OBS = ObservationType.PAYLOAD_ONE_SENSOR
     else:
         OBS = ObservationType.RGB
 
@@ -171,6 +175,8 @@ if __name__ == "__main__":
         OWN_OBS_VEC_SIZE = 4+2+ 2*(NUM_DRONES - 1)
     elif OBS == ObservationType.PAYLOAD:
         OWN_OBS_VEC_SIZE = 4+3+ 3*(NUM_DRONES - 1)
+    elif OBS == ObservationType.PAYLOAD_ONE_SENSOR:
+        OWN_OBS_VEC_SIZE = 1+3+ 3*(NUM_DRONES - 1)
     elif OBS == ObservationType.RGB:
         print("[ERROR] ObservationType.RGB for multi-agent systems not yet implemented")
         exit()
@@ -184,6 +190,8 @@ if __name__ == "__main__":
         ACTION_VEC_SIZE = 4
     elif ACT in [ActionType.PID, ActionType.XY_YAW]:
         ACTION_VEC_SIZE = 3
+    elif ACT in [ActionType.VEL_YAW]:
+        ACTION_VEC_SIZE = 5
     else:
         print("[ERROR] unknown ActionType")
         exit()
@@ -354,6 +362,8 @@ if __name__ == "__main__":
          action = {i: np.array([0, 0, 0]) for i in range(NUM_DRONES)}
     elif ACT in [ActionType.JOYSTICK]:
         action = {i: 0 for i in range(NUM_DRONES)}
+    elif ACT in [ActionType.VEL_YAW]:
+        action = {i: np.array([0, 0, 0, 0, 0]) for i in range(NUM_DRONES)}
     else:
         print("[ERROR] unknown ActionType")
         exit()

@@ -100,7 +100,7 @@ if __name__ == "__main__":
     INIT_RPYS = np.array([[0, 0,  i * (np.pi/2)/ARGS.num_drones] for i in range(ARGS.num_drones)])
     AGGR_PHY_STEPS = int(ARGS.simulation_freq_hz/ARGS.control_freq_hz) if ARGS.aggregate else 1
     
-    env = PayloadCoop(dest_point=[0, 9, 0.5], drone_model=ARGS.drone,
+    env = PayloadCoop(dest_point=[0, 6, 0.5], drone_model=ARGS.drone,
                          num_drones=ARGS.num_drones,
                          initial_xyzs=INIT_XYZS,
                          initial_rpys=INIT_RPYS,
@@ -121,20 +121,20 @@ if __name__ == "__main__":
 
     #### Run the simulation ####################################
     CTRL_EVERY_N_STEPS = int(np.floor(env.SIM_FREQ/ARGS.control_freq_hz))
-    action = {str(i): 4 for i in range(ARGS.num_drones)}
+    action = {i: np.array([0, 0, 0, 1, 0]) for i in range(ARGS.num_drones)}
     START = time.time()
     obs = env.reset()
     return_ = 0
     for i in range(0, int(ARGS.duration_sec*env.SIM_FREQ), AGGR_PHY_STEPS):
-
+        action[0] = np.array([0,0,0,0,1])
         #### Step the simulation ###################################
         obs, reward, done, info = env.step(action)
-        return_ += reward[0]
-        print(return_)
-
+        # return_ += reward[0]
+        # print(return_)
+        print(obs[0][0])
         #### Printout ##############################################
         if i%env.SIM_FREQ == 0: #setiap 1 detik
-            
+           
             env.render()
             #### Print matrices with the images captured by each drone #
             if ARGS.vision:

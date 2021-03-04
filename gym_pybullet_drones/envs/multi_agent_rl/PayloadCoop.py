@@ -76,6 +76,8 @@ class PayloadCoop(BaseMultiagentAviary):
             size = 4
         elif self.ACT_TYPE in [ActionType.PID, ActionType.XY_YAW]:
             size = 3
+        elif self.ACT_TYPE in [ActionType.VEL_YAW]:
+            size = 5
         else:
             print("[ERROR] in BaseMultiagentAviary._actionSpace()")
             exit()
@@ -86,7 +88,7 @@ class PayloadCoop(BaseMultiagentAviary):
     ################################################################################
 
     def _observationSpace(self):
-        if self.OBS_TYPE in [ObservationType.KIN, ObservationType.PAYLOAD, ObservationType.PAYLOAD_Z_CONST]:
+        if self.OBS_TYPE in [ObservationType.KIN, ObservationType.PAYLOAD, ObservationType.PAYLOAD_Z_CONST, ObservationType.PAYLOAD_ONE_SENSOR]:
             if self.OBS_TYPE == ObservationType.KIN:
                 #(x,y,z, r,p,y, x_dot, y_dot, z_dot, r_dot,p_dot,y_dot, ob_x+,ob_y+,ob_x-,ob_y-, x_dest-x,y_dest-y,z_dest-z,  x_dr2-x,y_dr2-y,z_dr2-z .....)
                 #12 + 4 state obstacle, 3 state distance to dest_point, 3N state distance between drone,
@@ -107,6 +109,13 @@ class PayloadCoop(BaseMultiagentAviary):
                 dist_drone = np.ones((3*(self.NUM_DRONES - 1)))
                 low = np.array([0,0,0,0, -1,-1,-1])
                 high = np.array([1,1,1,1,  1,1,1])
+            
+            elif self.OBS_TYPE == ObservationType.PAYLOAD_ONE_SENSOR:
+                #1 state obstacle, 3 state distance to dest_point, 3N state distance between drone,
+                dist_drone = np.ones((3*(self.NUM_DRONES - 1)))
+                low = np.array([0, -1,-1,-1])
+                high = np.array([1,  1,1,1])
+
 
             low = np.hstack([low, -1 * dist_drone])
             high = np.hstack([high, dist_drone])
@@ -120,7 +129,7 @@ class PayloadCoop(BaseMultiagentAviary):
     ################################################################################
 
     def _computeObs(self):
-        if self.OBS_TYPE in [ObservationType.KIN, ObservationType.PAYLOAD, ObservationType.PAYLOAD_Z_CONST]:
+        if self.OBS_TYPE in [ObservationType.KIN, ObservationType.PAYLOAD, ObservationType.PAYLOAD_Z_CONST, ObservationType.PAYLOAD_ONE_SENSOR]:
             obs_all = np.zeros((self.NUM_DRONES, 19+3*(self.NUM_DRONES - 1)), dtype = np.float32)
             for i in range(self.NUM_DRONES):
                 state = self._getDroneStateVector(i)
@@ -138,12 +147,16 @@ class PayloadCoop(BaseMultiagentAviary):
 
             elif self.OBS_TYPE == ObservationType.PAYLOAD_Z_CONST:
                 mask = np.arange(3*(self.NUM_DRONES - 1))
-                mask = (mask+1) % 3 != 0 # remove dist_betw_drone z state index
+                mask = (mask+1) % 3 != 0 # z part of remove dist_betw_drone state
                 mask = np.hstack([[False]*12, [True]*6, False, mask]) # 12 drone state, 4 obst + 3 dist2dest                
-                return {i: obs_all[i, mask] for i in range(self.NUM_DRONES)}
+                return {i: obs_all[i, mask != 0] for i in range(self.NUM_DRONES)}
 
             elif self.OBS_TYPE == ObservationType.PAYLOAD:
                 return {i: obs_all[i, 12:] for i in range(self.NUM_DRONES)}
+
+            elif self.OBS_TYPE == ObservationType.PAYLOAD_ONE_SENSOR:
+                mask = np.hstack([[False]*12, True, [False]*3, [True]*6]) # 12 drone state, 4 obst + 3 dist2dest     
+                return {i: obs_all[i, mask != 0] for i in range(self.NUM_DRONES)}
         else:
             print("[ERROR] in PayloadCoop._computeObs()")
             
@@ -278,6 +291,27 @@ class PayloadCoop(BaseMultiagentAviary):
                                                         target_rpy=target_rpy
                                                         )
                 rpm[int(k),:] = rpm_k
+            elif self.ACT_TYPE == ActionType.VEL_YAW:
+                state = self._getDroneStateVector(int(k))
+                if np.linalg.norm(v[0:3]) != 0:
+                    v_unit_vector = v[0:3] / np.linalg.norm(v[0:3])
+                else:
+                    v_unit_vector = np.zeros(3)
+                speed_limit = self.K_MOVE * self.MAX_SPEED_KMH * (1000/3600)
+                target_vel = speed_limit * np.abs(v[3]) * v_unit_vector 
+                target_rpy_rates =  np.array([0, 0, speed_limit * v[4]])
+                
+                rpm_k, _, _ = self.ctrl[int(k)].computeControl(control_timestep=self.AGGR_PHY_STEPS*self.TIMESTEP, 
+                                                        cur_pos=state[0:3],
+                                                        cur_quat=state[3:7],
+                                                        cur_vel=state[10:13],
+                                                        cur_ang_vel=state[13:16],
+                                                        target_pos=state[0:3],
+                                                        target_rpy=state[7:10], # keep current yaw
+                                                        target_vel=target_vel, # target the desired velocity vector
+                                                        target_rpy_rates= target_rpy_rates
+                                                        )
+                rpm[int(k),:] = rpm_k
             else:
                 print("[ERROR] in BaseMultiagentAviary._preprocessAction()")
                 exit()
@@ -292,13 +326,13 @@ class PayloadCoop(BaseMultiagentAviary):
                                state
                                ):
         STATE_TOL = shared_constants.STATE_TOL
-        MAX_LIN_VEL_XY = self.MAX_SPEED_KMH /3.6 * COEF_TOL
-        MAX_LIN_VEL_Z = self.MAX_SPEED_KMH /3.6 * COEF_TOL
-        MAX_ANG_VEL = self.MAX_SPEED_KMH /3.6 * COEF_TOL * self.COLLISION_R
-        MAX_XY = self.MAX_XY * COEF_TOL
-        MAX_Z = self.MAX_Z * COEF_TOL
-        MAX_DIST_GOAL = np.sqrt(2*MAX_XY**2) * COEF_TOL
-        MAX_DISTANCE_BETWEEN_DRONE = self.MAX_DISTANCE_BETWEEN_DRONE * COEF_TOL
+        MAX_LIN_VEL_XY = self.MAX_SPEED_KMH /3.6 * STATE_TOL
+        MAX_LIN_VEL_Z = self.MAX_SPEED_KMH /3.6 * STATE_TOL
+        MAX_ANG_VEL = self.MAX_SPEED_KMH /3.6 * STATE_TOL * self.COLLISION_R
+        MAX_XY = self.MAX_XY * STATE_TOL
+        MAX_Z = self.MAX_Z * STATE_TOL
+        MAX_DIST_GOAL = np.sqrt(2*MAX_XY**2) * STATE_TOL
+        MAX_DISTANCE_BETWEEN_DRONE = self.MAX_DISTANCE_BETWEEN_DRONE * STATE_TOL
 
         # MAX_XY = MAX_LIN_VEL_XY*self.EPISODE_LEN_SEC
         # MAX_Z = MAX_LIN_VEL_Z*self.EPISODE_LEN_SEC
@@ -472,18 +506,18 @@ class PayloadCoop(BaseMultiagentAviary):
         """
         id_ = p.loadURDF(name,
                     position,
-                    p.getQuaternionFromEuler(orientation),
+                    p.getQuaternionFromEuler(np.array(orientation)),
                     physicsClientId=self.CLIENT
                     )
         self.OBSTACLE_IDS.append(id_) 
 
     def _addObstaclesAll(self):
         min_obst_dist_created = 1.5
-        p_obst = np.random.uniform(shared_constants.MIN_DIST_FROM_ORIGIN, shared_constants.MAX_DIST_FROM_ORIGIN)
+        p_obst = np.random.uniform(shared_constants.MIN_DIST_FROM_ORIGIN, shared_constants.MAX_DIST_FROM_ORIGIN) * np.array(self.DEST_POINT) / np.linalg.norm((self.DEST_POINT))
         or_obst = [0, 0, np.random.uniform(0, 2*np.pi)]
         self._addObstaclesAt(p_obst, or_obst, "cube_no_rotation.urdf")
         # self._addObstaclesAt(p_obst, or_obst, "cube_custom.urdf")
-        # self._addObstaclesAt(self.dest_point, name = 'duck_vhacd.urdf')
+        self._addObstaclesAt(self.DEST_POINT, name = 'duck_vhacd.urdf')
 
     def _resetDestPoint(self):
         # r = np.random.uniform(0.5, 1.5) * np.linalg.norm(self.DEST_POINT[0:2])

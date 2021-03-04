@@ -6,8 +6,9 @@ ENV = 'payloadcoop'
 # For PayloadCoop
 PHYSICS = 'pyb'
 DRONE_MODEL = 'cf2x'
-OBS = 'payload'
-ACT = 'xyz_yaw'
+OBS = 'payload_one_sensor'
+ACT = 'vel_yaw'
+SENSOR_MODE = 1 # 0: sensor points in absolute frame, 1: sensor points in body frame
 
 DEST_POINT = [0, 6, 0.5]
 MAX_DISTANCE_BETWEEN_DRONE = 1.0
@@ -19,10 +20,10 @@ IS_ARRIVE_VEL_TOL = 0.05
 
 MAX_XY = 30.0
 MAX_Z = 3.0
-K_MOVE = 0.1
+K_MOVE = 1
 MAX_SENSOR_DIST = 2.0
 MAX_SENSOR_ANGLE = 10.0
-SENSOR_MODE = 1 # 0: sensor points in absolute frame, 1: sensor points in body frame
+
 
 # Reward
 RWD_HIT = -1e4
@@ -35,6 +36,9 @@ RWD_DIST_Z = 1 / FREQ * AGGR_PHY_STEPS
 
 # Randomization Obstacle
 # 0 < RadiusInit = MAX_DISTANCE_BETWEEN_DRONE/4 < MIN_DIST_FROM_ORIGIN < obstacle_position < MAX_DIST_FROM_ORIGIN < DEST_POINT
-MAX_DIST_FROM_ORIGIN = 4 
+MAX_DIST_FROM_ORIGIN = 4
 MIN_DIST_FROM_ORIGIN = 2
+
+import numpy as np
+assert 0 <= MAX_DISTANCE_BETWEEN_DRONE / 4 <= MIN_DIST_FROM_ORIGIN <= MAX_DIST_FROM_ORIGIN <= np.linalg.norm(DEST_POINT), "Error MIN/MAX_DIST_FROM_ORIGIN"
 

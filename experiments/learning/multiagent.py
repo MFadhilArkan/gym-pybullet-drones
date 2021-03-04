@@ -168,7 +168,9 @@ if __name__ == "__main__":
     elif ARGS.obs == ObservationType.PAYLOAD_Z_CONST:
         OWN_OBS_VEC_SIZE = 4+2+ 2*(ARGS.num_drones - 1)
     elif ARGS.obs == ObservationType.PAYLOAD:
-        OWN_OBS_VEC_SIZE = 4+3+ 3*(ARGS.num_drones - 1)  
+        OWN_OBS_VEC_SIZE = 4+3+ 3*(ARGS.num_drones - 1) 
+    elif ARGS.obs == ObservationType.PAYLOAD_ONE_SENSOR:
+        OWN_OBS_VEC_SIZE = 1+3+ 3*(ARGS.num_drones - 1) 
     else:
         print("[ERROR] unknown ObservationType")
         exit()
@@ -179,6 +181,8 @@ if __name__ == "__main__":
         ACTION_VEC_SIZE = 4
     elif ARGS.act in [ActionType.PID, ActionType.XY_YAW]:
         ACTION_VEC_SIZE = 3
+    elif ARGS.act in [ActionType.VEL_YAW]:
+        ACTION_VEC_SIZE = 5
 
     else:
         print("[ERROR] unknown ActionType")
