@@ -262,7 +262,7 @@ class PayloadCoop(BaseMultiagentAviary):
                                                         cur_quat=state[3:7],
                                                         cur_vel=state[10:13],
                                                         cur_ang_vel=state[13:16],
-                                                        target_pos=target_pos
+                                                        target_pos=np.array([target_pos[0], target_pos[1], self.Z_CONST])
                                                         )
                 rpm[int(k),:] = rpm_k
             elif self.ACT_TYPE == ActionType.XY_YAW:
@@ -512,7 +512,6 @@ class PayloadCoop(BaseMultiagentAviary):
         self.OBSTACLE_IDS.append(id_) 
 
     def _addObstaclesAll(self):
-        min_obst_dist_created = 1.5
         p_obst = np.random.uniform(shared_constants.MIN_DIST_FROM_ORIGIN, shared_constants.MAX_DIST_FROM_ORIGIN) * np.array(self.DEST_POINT) / np.linalg.norm((self.DEST_POINT))
         or_obst = [0, 0, np.random.uniform(0, 2*np.pi)]
         self._addObstaclesAt(p_obst, or_obst, "cube_no_rotation.urdf")
@@ -529,7 +528,7 @@ class PayloadCoop(BaseMultiagentAviary):
     def _initPositionOnCircle(self, n_drone, r = None, z = None, random = True):
         
         if(r == None):
-            r = self.MAX_DISTANCE_BETWEEN_DRONE / 4
+            r = self.MAX_DISTANCE_BETWEEN_DRONE / 5
         if(z == None):
             z = self.Z_CONST
         ps = np.zeros((n_drone, 3))

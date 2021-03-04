@@ -100,7 +100,7 @@ if __name__ == "__main__":
     INIT_RPYS = np.array([[0, 0,  i * (np.pi/2)/ARGS.num_drones] for i in range(ARGS.num_drones)])
     AGGR_PHY_STEPS = int(ARGS.simulation_freq_hz/ARGS.control_freq_hz) if ARGS.aggregate else 1
     
-    env = PayloadCoop(dest_point=[0, 6, 0.5], drone_model=ARGS.drone,
+    env = PayloadCoop(dest_point=[0, 5, 0.5], drone_model=ARGS.drone,
                          num_drones=ARGS.num_drones,
                          initial_xyzs=INIT_XYZS,
                          initial_rpys=INIT_RPYS,

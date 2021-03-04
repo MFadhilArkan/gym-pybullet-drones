@@ -1,7 +1,7 @@
 AGGR_PHY_STEPS = 5
 NUM_DRONES = 2
 ENV = 'payloadcoop'
-"""int: Aggregate PyBullet/physics steps within a single call to env.step()."""
+
 
 # For PayloadCoop
 PHYSICS = 'pyb'
@@ -10,7 +10,7 @@ OBS = 'payload_one_sensor'
 ACT = 'vel_yaw'
 SENSOR_MODE = 1 # 0: sensor points in absolute frame, 1: sensor points in body frame
 
-DEST_POINT = [0, 6, 0.5]
+DEST_POINT = [0, 5, 0.5]
 MAX_DISTANCE_BETWEEN_DRONE = 1.0
 EPISODE_LEN_SEC = 60.0
 FREQ = 100
@@ -20,7 +20,7 @@ IS_ARRIVE_VEL_TOL = 0.05
 
 MAX_XY = 30.0
 MAX_Z = 3.0
-K_MOVE = 1
+K_MOVE = 0.3
 MAX_SENSOR_DIST = 2.0
 MAX_SENSOR_ANGLE = 10.0
 
