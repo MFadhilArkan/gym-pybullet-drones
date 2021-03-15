@@ -121,15 +121,15 @@ if __name__ == "__main__":
 
     #### Run the simulation ####################################
     CTRL_EVERY_N_STEPS = int(np.floor(env.SIM_FREQ/ARGS.control_freq_hz))
-    action = {i: np.array([0, 0, 0, 0.1]) for i in range(ARGS.num_drones)}
+    action = {i: np.array([-0.1, -0.2, 0, 1, 1]) for i in range(ARGS.num_drones)}
     START = time.time()
     obs = env.reset()
     return_ = 0
 
 
-    for i in range(8):
-        env.TRAINING_PHASE = i
-        env.reset()
+    # for i in range(8):
+    #     env.TRAINING_PHASE = i
+    #     env.reset()
         
     for i in range(0, int(ARGS.duration_sec*env.SIM_FREQ), AGGR_PHY_STEPS):
         #### Step the simulation ###################################

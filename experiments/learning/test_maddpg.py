@@ -128,7 +128,7 @@ if __name__ == "__main__":
 
     #### Define and parse (optional) arguments for the script ##
     parser = argparse.ArgumentParser(description='Multi-agent reinforcement learning experiments script')
-    parser.add_argument('--exp',    default = "experiments/learning/results/save-payloadcoop-2-cc-kin-xyz_yaw-03.11.2021_21.40.14", type=str,       help='Help (default: ..)', metavar='')
+    parser.add_argument('--exp',    default = "experiments/learning/results/save-payloadcoop-2-cc-payload_one_sensor-vel_yaw-03.12.2021_06.06.40", type=str,       help='Help (default: ..)', metavar='')
     ARGS = parser.parse_args()
 
     #### Parameters to recreate the environment ################
@@ -179,7 +179,7 @@ if __name__ == "__main__":
     #### Set up the model parameters of the trainer's config ###
     config["model"] = { 
         "custom_model": "cc_model",
-        "fcnet_hiddens": [256, 128, 64],
+        "fcnet_hiddens": [512, 256, 128],
         "fcnet_activation": "relu",
     }
     
@@ -197,7 +197,7 @@ if __name__ == "__main__":
     agent = ddpg.DDPGTrainer(config=config)
     # with open(ARGS.exp+'/checkpoint.txt', 'r+') as f:
     #     checkpoint = f.read()
-    checkpoint = "/home/mahendra/git/gym-pybullet-drones/experiments/learning/results/save-payloadcoop-2-cc-kin-xyz_yaw-03.11.2021_21.40.14/DDPG/DDPG_this-aviary-v0_b279d_00000_0_2021-03-11_21-40-17/checkpoint_68/checkpoint-68"
+    checkpoint = "//home/mahendra/git/gym-pybullet-drones/experiments/learning/results/save-payloadcoop-2-cc-payload_one_sensor-vel_yaw-03.12.2021_06.06.40/DDPG/DDPG_this-aviary-v0_71fdc_00000_0_2021-03-12_06-06-43/checkpoint_10/checkpoint-10"
     agent.restore(checkpoint)
 
     #### Extract and print policies ############################
@@ -231,7 +231,8 @@ if __name__ == "__main__":
         temp[1] = policy1.compute_single_action(np.hstack([action[0], obs[0], obs[1]]))
         action = {0: temp[0][0], 1: temp[1][0]}
         obs, reward, done, info = test_env.step(action)
-        test_env.render()
+        if i%test_env.SIM_FREQ == 0:
+            test_env.render()
         sync(np.floor(i*test_env.AGGR_PHY_STEPS), start, test_env.TIMESTEP)
         if done["__all__"]: obs = test_env.reset() # OPTIONAL EPISODE HALT
     test_env.close()
