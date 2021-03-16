@@ -66,6 +66,7 @@ class PayloadCoop(BaseMultiagentAviary):
         self.TRAINING_PHASE = 0
         self.POS_TOL = shared_constants.IS_ARRIVE_POS_TOL
         self.VEL_TOL = shared_constants.IS_ARRIVE_VEL_TOL
+        self.MAX_DISTANCE_TO_ORIGIN = np.sqrt(self.MAX_XY**2 + self.MAX_XY**2 + self.MAX_Z)
 
         # assert self.NUM_DRONES == 2, "NUM_DRONES is not 2"
         assert self.DEST_POINT[0] < self.MAX_XY and self.DEST_POINT[1] < self.MAX_XY, "dest_point exceeds MAX_XY"
@@ -159,6 +160,7 @@ class PayloadCoop(BaseMultiagentAviary):
 
             elif self.OBS_TYPE == ObservationType.PAYLOAD_ONE_SENSOR:
                 index_true = np.array([5, 12, 16, 17, 18, 19, 20, 21])
+                mask = np.zeros(22)
                 mask[index_true] = 1   
                 return {i: obs_all[i, mask != 0] for i in range(self.NUM_DRONES)}
         else:
@@ -177,20 +179,34 @@ class PayloadCoop(BaseMultiagentAviary):
         rwd_dist_z = shared_constants.RWD_DIST_Z
         rwd_outoffield = shared_constants.RWD_OUTOFFIELD
 
+        done = False
+        step_to_go = (self.EPISODE_LEN_SEC * self.SIM_FREQ - self.step_counter)
+        
         if(self._isDroneTooFar(drone_ids)):
             reward += rwd_toofar_drone   
+            done = True
 
         if(self._isArrive(drone_ids)):
             reward += rwd_arrive
+            done = True
 
         if(self._isOutOfField(drone_ids)):
             reward += rwd_outoffield
+            done = True
 
         # Time reward
         reward += rwd_time
+        
 
         # Approaching dest
-        reward += rwd_dist_dest * np.linalg.norm(self._getCentroid(drone_ids) - self.DEST_POINT)**2
+        dist_dest = np.linalg.norm(self._getCentroid(drone_ids) - self.DEST_POINT)
+        reward += rwd_dist_dest * dist_dest
+        if(done):
+            reward += rwd_dist_dest * dist_dest * step_to_go
+        # max_dist_dest = self.MAX_DISTANCE_TO_ORIGIN + np.linalg.norm(self.DEST_POINT)
+        # dist = np.linalg.norm(self._getCentroid(drone_ids) - self.DEST_POINT)
+        # assert max_dist_dest > dist, "Error"
+        # reward += rwd_dist_dest * (max_dist_dest - dist)
         
         # Distance between drone
         for i in range(len(drone_ids)):
@@ -198,8 +214,10 @@ class PayloadCoop(BaseMultiagentAviary):
                 if(i != j):
                     drone1 = self._getDroneStateVector(i)
                     drone2 = self._getDroneStateVector(j)
-                    dist = np.linalg.norm(drone1[0:3] - drone2[0:3])
-                    reward += rwd_dist_betw_drone * (dist - self.MAX_DISTANCE_BETWEEN_DRONE/2)**2
+                    dist_drone = np.linalg.norm(drone1[0:3] - drone2[0:3])
+                    reward += rwd_dist_betw_drone * np.abs((dist_drone - self.MAX_DISTANCE_BETWEEN_DRONE/2))
+                    if(done):
+                        reward += rwd_dist_betw_drone * np.abs((dist_drone - self.MAX_DISTANCE_BETWEEN_DRONE/2)) * step_to_go
 
         rewards = {i: reward for i in range(len(drone_ids))}      
         for i in range(len(drone_ids)):
@@ -211,6 +229,8 @@ class PayloadCoop(BaseMultiagentAviary):
             # RPM_eq = ((self.M * self.G) / (4 * self.KF))**0.5 
             # rewards[i] += rwd_rpm * np.linalg.norm(drone_states[16:20] - RPM_eq) / 4
             rewards[i] += rwd_rpm * np.sum(drone_states[16:20]) / 4
+            if(done):
+                rewards[i] += rwd_rpm * np.sum(drone_states[16:20]) / 4 * step_to_go
 
             # isHitEverything
             if(self._isHitEverything(drone_ids[i])):
@@ -223,7 +243,6 @@ class PayloadCoop(BaseMultiagentAviary):
         drone_ids = self.getDroneIds()
         bool_val = self._isArrive(drone_ids) or self._isDroneTooFar(drone_ids) or (self.step_counter/self.SIM_FREQ > self.EPISODE_LEN_SEC) \
                     or self._isOutOfField(drone_ids)
-        
         done = {i: bool_val for i in range(self.NUM_DRONES)}
         for i in range(len(drone_ids)):
             done[i] = done[i] or self._isHitEverything(drone_ids[i])
@@ -473,29 +492,29 @@ class PayloadCoop(BaseMultiagentAviary):
         a, b = p.getAABB(drone_id, physicsClientId = self.CLIENT) # Melihat batas posisi collision drone ke i
         list_obj = p.getOverlappingObjects(a, b, physicsClientId = self.CLIENT) # Melihat objek2 yang ada di batas posisi collision
         if(list_obj != None and len(list_obj) > 6): # 1 Quadcopter memiliki 6 link/bagian
-            # print("Drone {}: _isHitEverything".format(i))
+            # print("Drone {}: _isHitEverything".format(drone_id))
             return True
         return False
 
     ################################################################################
 
-    def _isDroneTooFar(self, drone_ids, max_dist = None):
+    def _isDroneTooFar(self, drone_ids, max_dist_drone = None):
         # Looping untuk setiap pair of drone
-        if(max_dist == None):
-            max_dist = self.MAX_DISTANCE_BETWEEN_DRONE
+        if(max_dist_drone == None):
+            max_dist_drone = self.MAX_DISTANCE_BETWEEN_DRONE
         for i in range(len(drone_ids)):
             for j in range(i + 1, len(drone_ids)):
                 dr1_states = self._getDroneStateVector(i)
                 dr2_states = self._getDroneStateVector(j)
                 dist = np.linalg.norm(dr1_states[0:3] - dr2_states[0:3])
-                if (dist > max_dist):
+                if (dist > max_dist_drone):
                     # print("Drone {}-{}: _isDroneTooFar".format(i, j))
                     return True
         return False
 
     def _isOutOfField(self, drone_ids):
         centroid = self._getCentroid(drone_ids)
-        if(centroid[0] > self.MAX_XY or centroid[1] > self.MAX_XY or centroid[2] > self.MAX_Z):
+        if(np.linalg.norm(centroid) > self.MAX_DISTANCE_TO_ORIGIN):
             return True
         else:
             return False
@@ -512,7 +531,6 @@ class PayloadCoop(BaseMultiagentAviary):
 
         if(dest == None):
             dest = self.DEST_POINT
-        
         
         #check if all drone is not moving
         for i in range(len(drone_ids)):

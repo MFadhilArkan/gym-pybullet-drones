@@ -70,41 +70,29 @@ import tensorflow.keras.layers as layers
 # Competing policies example: github.com/ray-project/ray/blob/master/rllib/examples/rock_paper_scissors_multiagent.py
 ############################################################
 class CustomTorchCentralizedCriticModel(TorchModelV2, nn.Module):
-    """Multi-agent model that implements a centralized value function.
-
-    It assumes the observation is a dict with 'own_obs' and 'opponent_obs', the
-    former of which can be used for computing actions (i.e., decentralized
-    execution), and the latter for optimization (i.e., centralized learning).
-
-    This model has two parts:
-    - An action model that looks at just 'own_obs' to compute actions
-    - A value model that also looks at the 'opponent_obs' / 'opponent_action'
-      to compute the value (it does this by using the 'obs_flat' tensor).
-    """
-
     def __init__(self, obs_space, action_space, num_outputs, model_config, name):
         
         TorchModelV2.__init__(self, obs_space, action_space, num_outputs, model_config, name)
         nn.Module.__init__(self)
-        self.action_model = nn.Sequential(
-            # nn.BatchNorm1d(OWN_OBS_VEC_SIZE),
-            nn.Linear(OWN_OBS_VEC_SIZE, 64),
-            nn.Tanh(),
-            nn.Linear(64, 64),
-            nn.Tanh(),
-            nn.Linear(64, num_outputs),
-            nn.Tanh()
-        )
-        self.value_model = nn.Sequential(
-            # nn.BatchNorm1d(obs_space.shape[0]),
-            nn.Linear(obs_space.shape[0], 64),
-            nn.ReLU(),
-            nn.Linear(64, 64),
-            nn.ReLU(),
-            nn.Linear(64, 64),
-            nn.ReLU(),
-            nn.Linear(64, 1),
-        )
+        # self.action_model = nn.Sequential(
+        #     # nn.BatchNorm1d(OWN_OBS_VEC_SIZE),
+        #     nn.Linear(OWN_OBS_VEC_SIZE, 64),
+        #     nn.Tanh(),
+        #     nn.Linear(64, 64),
+        #     nn.Tanh(),
+        #     nn.Linear(64, num_outputs),
+        #     nn.Tanh()
+        # )
+        # self.value_model = nn.Sequential(
+        #     # nn.BatchNorm1d(obs_space.shape[0]),
+        #     nn.Linear(obs_space.shape[0], 64),
+        #     nn.ReLU(),
+        #     nn.Linear(64, 64),
+        #     nn.ReLU(),
+        #     nn.Linear(64, 64),
+        #     nn.ReLU(),
+        #     nn.Linear(64, 1),
+        # )
         self._model_in = None
 
     def forward(self, input_dict, state, seq_lens):
@@ -112,11 +100,11 @@ class CustomTorchCentralizedCriticModel(TorchModelV2, nn.Module):
         # return self.action_model({"obs": input_dict["obs"]["own_obs"]}, state, seq_lens)
         obs = input_dict["obs"]["own_obs"].float()
         self._last_flat_in = obs.reshape(obs.shape[0], -1)
-        self._features = self.action_model(self._last_flat_in)
+        self._features = action_model(self._last_flat_in)
         return self._features, state
 
     def value_function(self):
-        value_out, _ = self.value_model({"obs": self._model_in[0]}, self._model_in[1], self._model_in[2])
+        value_out, _ = value_model({"obs": self._model_in[0]}, self._model_in[1], self._model_in[2])
         return torch.reshape(value_out, [-1])
 
 
@@ -173,7 +161,7 @@ if __name__ == "__main__":
     parser.add_argument('--obs',         default=shared_constants.OBS,        type=ObservationType,                                                     help='Help (default: ..)', metavar='')
     parser.add_argument('--act',         default=shared_constants.ACT,  type=ActionType,                                                          help='Help (default: ..)', metavar='')
     parser.add_argument('--algo',        default='cc',         type=str,             choices=['cc'],                                     help='Help (default: ..)', metavar='')
-    parser.add_argument('--workers',     default=7,            type=int,                                                                 help='Help (default: ..)', metavar='')        
+    parser.add_argument('--workers',     default=6,            type=int,                                                                 help='Help (default: ..)', metavar='')        
     ARGS = parser.parse_args()
 
     #### Save directory ########################################
@@ -208,7 +196,25 @@ if __name__ == "__main__":
     action_space = temp_env.action_space[0]
     OWN_OBS_VEC_SIZE = observer_space["own_obs"].shape[0]
     ACTION_VEC_SIZE = action_space.shape[0]
-    
+    action_model = nn.Sequential(
+                # nn.BatchNorm1d(OWN_OBS_VEC_SIZE),
+                nn.Linear(OWN_OBS_VEC_SIZE, 64),
+                nn.Tanh(),
+                nn.Linear(64, 64),
+                nn.Tanh(),
+                nn.Linear(64, 256),
+                nn.Tanh()
+            )
+    value_model =  nn.Sequential(
+                # nn.BatchNorm1d(obs_space.shape[0]),
+                nn.Linear(2*OWN_OBS_VEC_SIZE + 1, 64),
+                nn.ReLU(),
+                nn.Linear(64, 64),
+                nn.ReLU(),
+                nn.Linear(64, 64),
+                nn.ReLU(),
+                nn.Linear(64, 1),
+            )
     ModelCatalog.register_custom_model("cc_model", CustomTorchCentralizedCriticModel)
     # ModelCatalog.register_custom_model("cc_model", TFModelCC)
     #### Note ##################################################
@@ -219,8 +225,8 @@ if __name__ == "__main__":
     # you can defer environment initialization until ``reset()`` is called
 
     #### Set up the trainer's config ###########################
-    # config = ddpg.DEFAULT_CONFIG.copy() # For the default config, see github.com/ray-project/ray/blob/master/rllib/agents/trainer.py
-    config = {
+    config = ddpg.DEFAULT_CONFIG.copy() # For the default config, see github.com/ray-project/ray/blob/master/rllib/agents/trainer.py
+    config.update({
         "env": temp_env_name,
         "num_workers": 0 + ARGS.workers,
         "num_gpus": int(os.environ.get("RLLIB_NUM_GPUS", "0")), # Use GPUs iff `RLLIB_NUM_GPUS` env var set to > 0
@@ -230,11 +236,11 @@ if __name__ == "__main__":
         "lr" : shared_constants.LR,
         "gamma": shared_constants.GAMMA,
         "n_step": shared_constants.N_STEP,
-        "num_envs_per_worker": 2,
+        "num_envs_per_worker": 4,
         # "batch_mode": "complete_episodes",
         # "train_batch_size":200,
         # "rollout_fragment_length":200,
-    }
+    })
 
     #### Set up the model parameters of the trainer's config ###
     config["model"] = { 
@@ -253,7 +259,7 @@ if __name__ == "__main__":
 
     #### Ray Tune stopping conditions ##########################
     stop = {
-        "timesteps_total": 3, # 8000,
+        "episodes_total": 100000, # 8000,
         # "episode_reward_mean": 0,
         # "training_iteration": 0,
     }
@@ -272,7 +278,7 @@ if __name__ == "__main__":
         verbose=3,
         checkpoint_at_end=True,
         local_dir=filename,
-        checkpoint_freq=10,
+        checkpoint_freq=50,
         # max_failures=-1,
         # restore=open("experiments/learning/results/save-payloadcoop-2-cc-kin-xyz_yaw-03.11.2021_20.57.58/checkpoint.txt").read()
         # restore = "/home/mahendra/git/gym-pybullet-drones/experiments/learning/results/save-payloadcoop-2-cc-payload_one_sensor-vel_yaw-03.12.2021_06.06.40/DDPG/DDPG_this-aviary-v0_71fdc_00000_0_2021-03-12_06-06-43/checkpoint_10/checkpoint-10"
