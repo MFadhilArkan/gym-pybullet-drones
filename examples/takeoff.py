@@ -46,10 +46,10 @@ if __name__ == "__main__":
     parser.add_argument('--record_video',       default=False,      type=str2bool,      help='Whether to record a video (default: False)', metavar='')
     parser.add_argument('--plot',               default=True,       type=str2bool,      help='Whether to plot the simulation results (default: True)', metavar='')
     parser.add_argument('--user_debug_gui',     default=False,      type=str2bool,      help='Whether to add debug lines and parameters to the GUI (default: False)', metavar='')
-    parser.add_argument('--aggregate',          default=False,      type=str2bool,      help='Whether to aggregate physics steps (default: False)', metavar='')
+    parser.add_argument('--aggregate',          default=True,      type=str2bool,      help='Whether to aggregate physics steps (default: False)', metavar='')
     parser.add_argument('--obstacles',          default=True,       type=str2bool,      help='Whether to add obstacles to the environment (default: True)', metavar='')
     parser.add_argument('--simulation_freq_hz', default=240,        type=int,           help='Simulation frequency in Hz (default: 240)', metavar='')
-    parser.add_argument('--control_freq_hz',    default=48,         type=int,           help='Control frequency in Hz (default: 48)', metavar='')
+    parser.add_argument('--control_freq_hz',    default=1,         type=int,           help='Control frequency in Hz (default: 48)', metavar='')
     parser.add_argument('--duration_sec',       default=300,          type=int,           help='Duration of the simulation in seconds (default: 5)', metavar='')
     ARGS = parser.parse_args()
 
@@ -74,7 +74,7 @@ if __name__ == "__main__":
     TARGET_POS = np.zeros((NUM_WP,3))
     for i in range(NUM_WP):
         # TARGET_POS[i, :] = R*np.cos((i/NUM_WP)*(2*np.pi)+np.pi/2)+INIT_XYZS[0, 0], R*np.sin((i/NUM_WP)*(2*np.pi)+np.pi/2)-R+INIT_XYZS[0, 1], 0
-        TARGET_POS[i, :] = [0.2, -0.2, 0.3]
+        TARGET_POS[i, :] = [0, 0, 2]
         # if(i < NUM_WP/2 ):
         #     TARGET_POS[i, :] = [0.5*i/NUM_WP, -0.5*i/NUM_WP, i/NUM_WP]
         # else:
@@ -164,10 +164,10 @@ if __name__ == "__main__":
             for j in range(ARGS.num_drones):
                 action[str(j)], _, _ = ctrl[j].computeControlFromState(control_timestep=CTRL_EVERY_N_STEPS*env.TIMESTEP,
                                                                        state=obs[str(j)]["state"],
-                                                                       target_pos=obs[str(j)]["state"][0:3],
+                                                                       target_pos=TARGET_POS[j],
                                                                        target_rpy=obs[str(j)]["state"][7:10],
                                                                        target_vel=[0,0,0],
-                                                                       target_rpy_rates=[0,0,1]
+                                                                       target_rpy_rates=[0,0,0]
                                                                        )
 
             #### Go to the next way point and loop #####################

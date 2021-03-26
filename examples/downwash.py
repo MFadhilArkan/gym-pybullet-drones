@@ -87,12 +87,12 @@ if __name__ == "__main__":
                 wp_counters[j] = wp_counters[j] + 1 if wp_counters[j] < (NUM_WP-1) else 0
 
         #### Log the simulation ####################################
-        for j in range(2):
-            logger.log(drone=j,
-                       timestamp=i/env.SIM_FREQ,
-                       state=obs[str(j)]["state"],
-                       control=np.hstack([TARGET_POS[wp_counters[j], :], INIT_XYZS[j ,2], np.zeros(9)])
-                       )
+        # for j in range(2):
+        #     logger.log(drone=j,
+        #                timestamp=i/env.SIM_FREQ,
+        #                state=obs[str(j)]["state"],
+        #                control=np.hstack([TARGET_POS[wp_counters[j], :], INIT_XYZS[j ,2], np.zeros(9)])
+        #                )
 
         #### Printout ##############################################
         if i%env.SIM_FREQ == 0:

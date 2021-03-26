@@ -137,7 +137,7 @@ if __name__ == "__main__":
     }
     #### Restore agent #########################################
     agent = maddpg.MADDPGTrainer(config=config)
-    checkpoint = "experiments/learning/results/save-payloadcoop-2-cc-payload_one_sensor-xyz_yaw-03.23.2021_14.43.35/MADDPG_2021-03-23_14-43-38/MADDPG_this-aviary-v0_7ae3a_00000_0_2021-03-23_14-43-38/checkpoint_1/checkpoint-1"
+    checkpoint = "experiments/learning/results/save-payloadcoop-2-cc-payload_one_sensor-xyz_yaw-03.23.2021_14.32.12/MADDPG_2021-03-23_14-32-18/MADDPG_this-aviary-v0_e577f_00000_0_2021-03-23_14-32-18/checkpoint_1/checkpoint-1"
     agent.restore(checkpoint)
 
 
@@ -152,8 +152,8 @@ if __name__ == "__main__":
     )
     for ep in range(10):
         #### Show, record a video, and log the model's performance #
-        obs = test_env.reset()
         test_env.set_phase(12)
+        obs = test_env.reset()
         logger = Logger(logging_freq_hz=int(test_env.SIM_FREQ/test_env.AGGR_PHY_STEPS),
                         num_drones=NUM_DRONES
                         )

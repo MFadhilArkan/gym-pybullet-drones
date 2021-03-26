@@ -44,8 +44,8 @@ from gym_pybullet_drones.utils.Logger import Logger
 from gym_pybullet_drones.utils.utils import sync
 from ray.rllib.models.modelv2 import ModelV2
 from ray.rllib.utils.annotations import override
-
 import shared_constants
+
 action_model = nn.Sequential(
             nn.Linear(8 + 2, 64),
             nn.ReLU(),
@@ -216,7 +216,7 @@ if __name__ == "__main__":
     agent = ddpg.DDPGTrainer(config=config)
     # with open(ARGS.exp+'/checkpoint.txt', 'r+') as f:
     #     checkpoint = f.read()
-    checkpoint = "/home/mahendra/git/gym-pybullet-drones/experiments/learning/results/save-payloadcoop-2-cc-payload_one_sensor-xyz_yaw-03.25.2021_19.59.31/DDPG_2021-03-25_19-59-34/DDPG_this-aviary-v0_f271e_00000_0_2021-03-25_19-59-34/checkpoint_10/checkpoint-10"
+    checkpoint = "/home/mahendra/git/gym-pybullet-drones/experiments/learning/results/save-payloadcoop-2-cc-payload_one_sensor-xyz_yaw-03.25.2021_20.20.48/DDPG_2021-03-25_20-20-51/DDPG_this-aviary-v0_ebf05_00000_0_2021-03-25_20-20-52/checkpoint_40/checkpoint-40"
     agent.restore(checkpoint)
 
     #### Extract and print policies ############################
@@ -232,16 +232,19 @@ if __name__ == "__main__":
                             aggregate_phy_steps=shared_constants.AGGR_PHY_STEPS,
                             obs=OBS,
                             act=ACT,
-                            gui=True
+                            gui=True,
+                            record=True
     )
     #### Show, record a video, and log the model's performance #
     
+    
     for ep in range(10):
-        obs = test_env.reset()
+        
         logger = Logger(logging_freq_hz=int(test_env.SIM_FREQ/test_env.AGGR_PHY_STEPS),
                         num_drones=NUM_DRONES
                         )
         test_env.set_phase(12)
+        obs = test_env.reset()
         action = {i: action_space.sample() for i in range(NUM_DRONES)}
         START = time.time()
         return_ = 0

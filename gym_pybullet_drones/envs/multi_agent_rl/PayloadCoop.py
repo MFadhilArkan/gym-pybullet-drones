@@ -270,8 +270,8 @@ class PayloadCoop(BaseMultiagentAviary):
                                                           ) for i in range(self.NUM_DRONES)]
         #### Save, preprocess, and clip the action to the max. RPM #
         else:
-            self._saveLastAction(action)
-            clipped_action = np.reshape(self._preprocessAction(action), (self.NUM_DRONES, 4))
+            pass
+            # clipped_action = np.reshape(self._preprocessAction(action), (self.NUM_DRONES, 4))
         #### Repeat for as many as the aggregate physics steps #####
         dr_state_bef = np.array([self._getDroneStateVector(i) for i in range(self.NUM_DRONES)])
         for _ in range(self.AGGR_PHY_STEPS):
@@ -279,7 +279,10 @@ class PayloadCoop(BaseMultiagentAviary):
             #### Between aggregate steps for certain types of update ###
             if self.AGGR_PHY_STEPS > 1 and self.PHYSICS in [Physics.DYN, Physics.PYB_GND, Physics.PYB_DRAG, Physics.PYB_DW, Physics.PYB_GND_DRAG_DW]:
                 self._updateAndStoreKinematicInformation()
+                self._saveLastAction(action)
             #### Step the simulation using the desired physics update ##
+            clipped_action = np.reshape(self._preprocessAction(action), (self.NUM_DRONES, 4))
+            print(clipped_action[0,:])
             for i in range (self.NUM_DRONES):
                 if self.PHYSICS == Physics.PYB:
                     self._physics(clipped_action[i, :], i)
@@ -619,7 +622,7 @@ class PayloadCoop(BaseMultiagentAviary):
         or_obst = [0, 0, np.random.uniform(0, 2*np.pi)]
         # self._addObstaclesAt([p_obst[0], p_obst[1], 1], or_obst, "cylinder.urdf")
         self._addObstaclesAt([p_obst[0], p_obst[1], 0.5], or_obst, "cube_no_rotation.urdf")
-        # self._addObstaclesAt(self.DEST_POINT, name = 'duck_vhacd.urdf')
+        self._addObstaclesAt(self.DEST_POINT, name = 'duck_vhacd.urdf')
 
     def _resetDestPoint(self):
         # r = np.random.uniform(0.5, 1.5) * np.linalg.norm(self.DEST_POINT[0:2])

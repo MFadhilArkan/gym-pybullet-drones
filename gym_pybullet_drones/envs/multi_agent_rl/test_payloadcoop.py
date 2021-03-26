@@ -121,20 +121,18 @@ if __name__ == "__main__":
                     )
 
     #### Run the simulation ####################################
-    env.TRAINING_PHASE = 0
+    env.TRAINING_PHASE = 12
     CTRL_EVERY_N_STEPS = int(np.floor(env.SIM_FREQ/ARGS.control_freq_hz))
-    action = {i: np.array([0, 1, 0, 1, 1]) for i in range(ARGS.num_drones)}
+    action = {i: np.array([0, 0, 0, 0, 0.1]) for i in range(ARGS.num_drones)}
     START = time.time()
     obs = env.reset()
     return_ = 0
     env.reset()
-    env.reset()
-    env.reset()
     for i in range(0, int(ARGS.duration_sec*env.SIM_FREQ), AGGR_PHY_STEPS):
         obs, reward, done, info = env.step(action)
+        print(obs[0].round(2))
         drone0 = env._getDroneStateVector(0)
         drone1 = env._getDroneStateVector(1)
-        print(env.step_counter/env.SIM_FREQ, env.EPISODE_LEN_SEC)
         if i%env.SIM_FREQ == 0: # setiap 1 detik
             # print("Jarak Drone 0 dengan drone lain: {}".format((drone1[0:3] - drone0[0:3]).round(3)))
             # print("Hasil Normalisasi:               {}".format((obs[0][5:]).round(3)))
