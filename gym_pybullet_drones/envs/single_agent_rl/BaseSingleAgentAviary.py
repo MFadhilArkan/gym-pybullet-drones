@@ -34,6 +34,7 @@ class ObservationType(Enum):
     PAYLOAD_Z_CONST = "payload_z_const"
     PAYLOAD = "payload"
     PAYLOAD_ONE_SENSOR = "payload_one_sensor"
+    NOOBS = "noobs"
 ################################################################################
 
 class BaseSingleAgentAviary(BaseAviary):

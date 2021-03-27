@@ -85,25 +85,37 @@ class LeaderFollowerAviary(BaseMultiagentAviary):
 
         """
         rewards = {}
-        states = np.array([self._getDroneStateVector(0) for i in range(self.NUM_DRONES)])
-        rewards[0] = -1 * np.linalg.norm(np.array([1, 1, 1]) - states[0, 0:3])**2
+        drone_ids = self.getDroneIds()
+        states = np.array([self._getDroneStateVector(i) for i in range(self.NUM_DRONES)])
+        rewards[0] = -10 * np.linalg.norm(self.DEST_POINT[0] - states[0, 0])
+        rewards[0] += -10 * np.linalg.norm(self.DEST_POINT[1] - states[0, 1])
+        rewards[0] += -10 * np.linalg.norm(self.DEST_POINT[2] - states[0, 2])
+        #print(states[:,0:3])
+        #if(self._isHitEverything(0)):
+        #      reward[0] += -100
+        # rewards[1] = -1 * np.linalg.norm(np.array([states[1, 0], states[1, 1], 0.5]) - states[1, 0:3])**2 # DEBUG WITH INDEPENDENT REWARD 
         for i in range(1, self.NUM_DRONES):
-            rewards[i] = -1 * np.linalg.norm(states[i-1, 0:3] - states[i, 0:3])**2
+            rewards[i] = -10 * np.linalg.norm(self.DEST_POINT[0] + self.INIT_XYZS[i,0]- self.INIT_XYZS[0,0] - states[i, 0])
+            rewards[i] += -10 * np.linalg.norm(self.DEST_POINT[1] + self.INIT_XYZS[i,1]- self.INIT_XYZS[0,1] - states[i, 1])
+            rewards[i] += -10 * np.linalg.norm(self.INIT_XYZS[0,2] - states[i, 2])
+              #print(states[:,0:3])
+            #if(self._isHitEverything(drone_ids)):
+            #  rewards[i] += -100
+            #  print(states[:,0:3])
+        if(self._isArrive(drone_ids)):
+          print("position:",states[:,0:3])
+          print("velocity:",states[:,6:9])
+          rewards[0] += 1000 - 250*(states[0,6]+states[0,7])
+          rewards[1] += 1000 - 250*(states[1,6]+states[1,7])
         return rewards
 
     ################################################################################
     
     def _computeDone(self):
-        """Computes the current done value(s).
-
-        Returns
-        -------
-        dict[int | "__all__", bool]
-            Dictionary with the done value of each drone and 
-            one additional boolean value for key "__all__".
-
-        """
-        bool_val = True if self.step_counter/self.SIM_FREQ > self.EPISODE_LEN_SEC else False
+        drone_ids = self.getDroneIds()
+        bool_val = self._isDroneTooFar(drone_ids) #\
+            #or self._isHitEverything(drone_ids)
+        bool_val = bool_val or (self.step_counter/self.SIM_FREQ > self.EPISODE_LEN_SEC)
         done = {i: bool_val for i in range(self.NUM_DRONES)}
         done["__all__"] = True if True in done.values() else False
         return done
