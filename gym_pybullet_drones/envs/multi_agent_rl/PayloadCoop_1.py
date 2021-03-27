@@ -325,6 +325,74 @@ class PayloadCoop(BaseMultiagentAviary):
 
     ################################################################################
 
+    def reset(self):
+        temp = super().reset()
+        #Curriculum learning
+        if(self.TRAINING_PHASE == 0):
+            self.DEST_POINT = shared_constants.DEST_POINT * [1, 0.1, 1]
+            self.VEL_TOL = shared_constants.IS_ARRIVE_VEL_TOL * 2
+            self.POS_TOL = shared_constants.IS_ARRIVE_POS_TOL * 2
+        elif(self.TRAINING_PHASE == 1):
+            self.DEST_POINT = shared_constants.DEST_POINT * [1, 0.2, 1]
+            self.VEL_TOL = shared_constants.IS_ARRIVE_VEL_TOL * 2
+            self.POS_TOL = shared_constants.IS_ARRIVE_POS_TOL * 2
+        elif(self.TRAINING_PHASE == 1):
+            self.DEST_POINT = shared_constants.DEST_POINT * [1, 0.2, 1]
+            self.VEL_TOL = shared_constants.IS_ARRIVE_VEL_TOL * 2
+            self.POS_TOL = shared_constants.IS_ARRIVE_POS_TOL * 2
+        elif(self.TRAINING_PHASE == 2):
+            self.DEST_POINT = shared_constants.DEST_POINT * [1, 0.3, 1]
+            self.VEL_TOL = shared_constants.IS_ARRIVE_VEL_TOL * 2
+            self.POS_TOL = shared_constants.IS_ARRIVE_POS_TOL * 2
+        elif(self.TRAINING_PHASE == 3):
+            self.DEST_POINT = shared_constants.DEST_POINT * [1, 0.4, 1]
+            self.VEL_TOL = shared_constants.IS_ARRIVE_VEL_TOL * 2
+            self.POS_TOL = shared_constants.IS_ARRIVE_POS_TOL * 2
+        elif(self.TRAINING_PHASE == 4):
+            self.DEST_POINT = shared_constants.DEST_POINT * [1, 0.5, 1]
+            self.VEL_TOL = shared_constants.IS_ARRIVE_VEL_TOL * 2
+            self.POS_TOL = shared_constants.IS_ARRIVE_POS_TOL * 2
+        elif(self.TRAINING_PHASE == 5):
+            self.DEST_POINT = shared_constants.DEST_POINT * [1, 0.6, 1]
+        elif(self.TRAINING_PHASE == 6):
+            self.DEST_POINT = shared_constants.DEST_POINT * [1, 0.7, 1]
+        elif(self.TRAINING_PHASE == 7):
+            self.DEST_POINT = shared_constants.DEST_POINT * [1, 0.8, 1]
+        elif(self.TRAINING_PHASE == 8):
+            self.DEST_POINT = shared_constants.DEST_POINT * [1, 0.9, 1]
+        elif(self.TRAINING_PHASE == 9):
+            self.DEST_POINT = shared_constants.DEST_POINT * [1, 1, 1]
+        elif(self.TRAINING_PHASE == 10):
+            self._resetDestPoint()
+        elif(self.TRAINING_PHASE == 11):
+            self._resetDestPoint()
+            pos = self._initPositionOnCircle(self.NUM_DRONES, self.MAX_DISTANCE_BETWEEN_DRONE/3)
+            for i in range(self.NUM_DRONES) :
+                p.resetBasePositionAndOrientation(self.DRONE_IDS[i],
+                                                pos[i, :],
+                                                p.getBasePositionAndOrientation(self.DRONE_IDS[i])[1],
+                                                physicsClientId=self.CLIENT
+                                                )
+        elif(self.TRAINING_PHASE == 12):
+            self._resetDestPoint()
+            pos = self._initPositionOnCircle(self.NUM_DRONES, self.MAX_DISTANCE_BETWEEN_DRONE/3)
+            for i in range(self.NUM_DRONES) :
+                p.resetBasePositionAndOrientation(self.DRONE_IDS[i],
+                                                pos[i, :],
+                                                p.getBasePositionAndOrientation(self.DRONE_IDS[i])[1],
+                                                physicsClientId=self.CLIENT
+                                                )
+            self._addObstaclesAll()
+        return temp
+
+    ################################################################################
+
+    def set_phase(self, phase):
+        if phase != self.TRAINING_PHASE:
+            self.TRAINING_PHASE = phase
+
+    ################################################################################
+
     def _preprocessAction(self, action):
         self.ACTION_NOW = action
         K_MOVE = self.K_MOVE  
